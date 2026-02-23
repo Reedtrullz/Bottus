@@ -1,0 +1,13 @@
+Title: Relay follow-up - MEDIUM task flow
+- Implemented in src/relay/index.ts a pending-followup flow for MEDIUM confidence extractions.
+- Key changes:
+  - Added in-memory map: pendingFollowups: Map<string, { startTime: number, type: string }>
+  - After sending MEDIUM follow-up, store channelId -> { startTime, type: 'MEDIUM' }
+  - 5-minute timeout to auto-clear pending entry
+  - If a channel has a pending follow-up and a new message is posted, treat it as the answer and create an event with the answer as the title
+- Verifications:
+  - [x] pendingFollowups populated on MEDIUM follow-up
+  - [x] onMention checks and handles pending follow-ups
+  - [x] Event creation uses user-provided title and stored startTime
+- Notes:
+  - This is an in-memory map; restart clears pending follow-ups. Consider persisting in a small in-memory DB if persistence is needed across restarts.

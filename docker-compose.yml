@@ -1,0 +1,88 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ine-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    environment:
+      OLLAMA_HOST: "0.0.0.0"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+
+  # OpenClaw Gateway - AI assistant with tool support
+  openclaw:
+    image: coollabsio/openclaw:latest
+    container_name: ine-openclaw
+    ports:
+      - "18789:18789"
+    volumes:
+      - openclaw-data:/data
+    environment:
+      # AI Provider - use local Ollama
+      CLAW_PROVIDER: "ollama"
+      OLLAMA_BASE_URL: "http://ollama:11434"
+      OLLAMA_MODEL: "qwen2.5:14b"
+      # Gateway configuration
+      OPENCLAW_GATEWAY_TOKEN: "${OPENCLAW_TOKEN:-change-me-in-env}"
+      # Auth (disable for local development)
+      AUTH_USERNAME: "admin"
+      AUTH_PASSWORD: "${OPENCLAW_PASSWORD:-}"
+      # Disable browser automation
+      BROWSER_EVALUATE_ENABLED: "false"
+    depends_on:
+      - ollama
+    restart: unless-stopped
+
+  ine-relay:
+    build:
+      context: .
+      dockerfile: Dockerfile.relay
+    container_name: ine-relay-bot
+    network_mode: host
+    env_file:
+      - .env
+    environment:
+      OLLAMA_URL: "http://127.0.0.1:11434"
+      OLLAMA_MODEL: "bazobehram/qwen3-14b-claude-4.5-opus-high-reasoning"
+      RELAY_TIMEOUT_MS: "120000"
+      HISTORY_MAX_MESSAGES: "5"
+      # ComfyUI integration
+      COMFYUI_URL: "http://127.0.0.1:8188"
+      # OpenClaw integration
+      OPENCLAW_URL: "http://127.0.0.1:18789"
+      OPENCLAW_TOKEN: "${OPENCLAW_TOKEN:-change-me-in-env}"
+      USE_OPENCLAW: "false"
+    depends_on:
+      - ollama
+      - openclaw
+    restart: unless-stopped
+
+  # ComfyUI - Local image generation (CPU mode)
+  comfyui:
+    image: ardenius/comfyui-cpu:latest
+    container_name: ine-comfyui
+    ports:
+      - "8188:8188"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - comfyui-data:/workspace/ComfyUI
+      - comfyui-models:/workspace/ComfyUI/models
+    command: python3 /ComfyUI-cpu/main.py --listen 0.0.0.0 --cpu --cpu-vae
+    environment:
+      COMFYUI_PORT: "8188"
+    restart: unless-stopped
+
+volumes:
+  ollama-data:
+  openclaw-data:
+  comfyui-data:
+  comfyui-models:

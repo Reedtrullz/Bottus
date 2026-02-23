@@ -1,0 +1,2 @@
+Date: 2026-02-22
+Findings: Entry point candidates scanned for index.ts, main.py, app.ts, server.ts. Found: /home/reed/Projects/Ine-Discord/src/index.ts as the primary TS entry point. No main.py, app.ts, or server.ts present at repo root. Additional module entry-like files exist (src/relay/index.ts, src/db/index.ts, src/commands/index.ts) but are not application entry points. Organization is standard for a TS Discord bot; no non-standard entry files detected.
