@@ -11,18 +11,33 @@ src/
 │   └── index.ts
 ├── db/              # SQLite via sql.js (eventDb, taskDb)
 │   └── index.ts
+├── gateway/         # NanoGateway skill dispatcher (experimental)
+│   ├── main.ts      # Gateway entry
+│   ├── run.ts      # Runner script
+│   ├── dispatcher.ts
+│   ├── adapters.ts
+│   ├── discord.ts
+│   ├── ollama.ts
+│   ├── parser.ts
+│   ├── memory.ts
+│   └── interfaces.ts
 ├── relay/           # Discord↔Ollama relay (selfbot)
 │   ├── index.ts     # Main relay + digital almanac
 │   ├── discord.ts   # Discord login
-│   ├── ollama.ts    # Ollama API client
-│   ├── openclaw-client.ts  # OpenClaw integration (working)
-│   ├── skills/      # NanoClaw-inspired skill system
+│   ├── ollama.ts   # Ollama API client
+│   ├── openclaw-client.ts  # OpenClaw integration
+│   ├── skills/     # NanoClaw-inspired skill system
 │   │   ├── interfaces.ts
 │   │   ├── registry.ts
 │   │   ├── calendar-skill.ts
 │   │   ├── image-skill.ts
 │   │   ├── memory-skill.ts
 │   │   └── extraction-skill.ts
+│   ├── handlers/    # Message handlers
+│   │   ├── help.ts
+│   │   ├── features.ts
+│   │   └── index.ts
+│   ├── router/      # Plan router
 │   └── utils/       # Relay utilities
 │       ├── detectors.ts
 │       └── rate-limit.ts
