@@ -24,8 +24,15 @@ describe('ImageSkill', () => {
   let mockDiscord: MockDiscordClient;
   let ctx: HandlerContext;
 
+  // Mock ComfyUIClient for unit testing
+  class MockComfyUIClient {
+    async generateImage(prompt: string, userId: string) {
+      return { success: true, imageUrl: 'http://localhost:8188/view/test.png' };
+    }
+  }
+
   beforeEach(() => {
-    skill = new ImageSkill();
+    skill = new ImageSkill(new MockComfyUIClient() as any);
     mockDiscord = new MockDiscordClient();
     ctx = {
       userId: TEST_CONFIG.userId,

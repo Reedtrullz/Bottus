@@ -18,7 +18,11 @@ export class ImageSkill implements Skill {
   readonly description = 'Generate images using ComfyUI';
 
   private memories: Map<string, any> = new Map();
-  private comfyui: ComfyUIClient = new ComfyUIClient();
+  private comfyui: ComfyUIClient;
+
+  constructor(comfyui?: ComfyUIClient) {
+    this.comfyui = comfyui || new ComfyUIClient();
+  }
 
   canHandle(message: string, _ctx: HandlerContext): boolean {
     if (!message) return false;
