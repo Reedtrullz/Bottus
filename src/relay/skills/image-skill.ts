@@ -1,5 +1,8 @@
 import type { Skill, HandlerContext, SkillResponse } from './interfaces.js';
 import { ComfyUIClient } from '../../services/comfyui.js';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
 
 const IMAGE_PATTERNS = [
   'lag et bilde av',
@@ -37,7 +40,18 @@ export class ImageSkill implements Skill {
             const result = await this.comfyui.generateImage(prompt, ctx.userId);
             
             if (result.success && result.imageUrl) {
-              await ctx.discord.sendMessage(ctx.channelId, '🎨 Bildet ditt:', { file: result.imageUrl });
+              // Download image to temp file and send to Discord
+              const tempFilePath = await this.downloadToTempFile(result.imageUrl);
+              if (tempFilePath) {
+                await ctx.discord.sendMessage(ctx.channelId, '🎨 Bildet ditt:', { file: tempFilePath });
+                // Clean up temp file after sending
+                try {
+                  fs.unlinkSync(tempFilePath);
+                } catch { /* ignore cleanup errors */ }
+              } else {
+                // Fallback: send URL as text if download fails
+                await ctx.discord.sendMessage(ctx.channelId, `🎨 Bildet ditt: ${result.imageUrl}`);
+              }
               return {
                 handled: true,
                 response: `Bilde generert!`,
@@ -69,5 +83,31 @@ export class ImageSkill implements Skill {
 
   setMemory(channelId: string, memory: any): void {
     this.memories.set(channelId, memory);
+  }
+
+  private async downloadToTempFile(imageUrl: string): Promise<string | null> {
+    try {
+      const response = await fetch(imageUrl);
+      if (!response.ok) {
+        console.error(`[ImageSkill] Failed to download image: ${response.status}`);
+        return null;
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      // Generate unique temp filename
+      const tempDir = os.tmpdir();
+      const filename = `inebot_image_${Date.now()}_${Math.random().toString(36).substring(7)}.png`;
+      const tempFilePath = path.join(tempDir, filename);
+
+      fs.writeFileSync(tempFilePath, buffer);
+      console.log(`[ImageSkill] Saved image to temp file: ${tempFilePath}`);
+
+      return tempFilePath;
+    } catch (error) {
+      console.error(`[ImageSkill] Error downloading image:`, error);
+      return null;
+    }
   }
 }

@@ -1,6 +1,8 @@
 import fetch from 'node-fetch';
 
 const COMFYUI_URL = process.env.COMFYUI_URL || 'http://localhost:8188';
+const COMFYUI_MODEL = process.env.COMFYUI_MODEL || 'v1-5-pruned-emaonly.safetensors';
+const COMFYUI_FALLBACK_MODEL = process.env.COMFYUI_FALLBACK_MODEL || 'sd15_default.yaml';
 
 export interface ImageResult {
   success: boolean;
@@ -13,6 +15,17 @@ export class ComfyUIClient {
   private queue: Map<string, { count: number; resetTime: number }> = new Map();
   private readonly RATE_LIMIT = 5;
   private readonly RATE_WINDOW_MS = 3600000;
+  // Circuit breaker state
+  private failureCount: number = 0;
+  private circuitState: 'closed' | 'open' | 'half-open' = 'closed';
+  private circuitOpenedAt: number = 0;
+  private readonly CIRCUIT_FAILURE_THRESHOLD = 3;
+  private readonly CIRCUIT_RESET_TIMEOUT_MS = 60000;
+
+  // Cached recent image
+  private lastSuccessfulImageUrl: string | null = null;
+  private lastImageTimestamp: number = 0;
+  private readonly CACHE_DURATION_MS = 300000;
 
   constructor(baseUrl?: string) {
     this.baseUrl = baseUrl || COMFYUI_URL;
@@ -44,82 +57,155 @@ export class ComfyUIClient {
   }
 
   async generateImage(prompt: string, userId: string): Promise<ImageResult> {
+    // Check circuit breaker before attempting generation
+    if (this.circuitState === 'open') {
+      const now = Date.now();
+      if (now - this.circuitOpenedAt >= this.CIRCUIT_RESET_TIMEOUT_MS) {
+        this.circuitState = 'half-open';
+        console.log(`[ComfyUI] Circuit breaker half-open, allowing test request`);
+      } else {
+        const retryAfter = Math.ceil((this.circuitOpenedAt + this.CIRCUIT_RESET_TIMEOUT_MS - now) / 1000);
+        return {
+          success: false,
+          error: `ComfyUI er midlertidig utilgjengelig på grunn av gjentatte feil. Prøv igjen om ${retryAfter} sekunder.\n\nDu kan også prøve å:\n• Restart ComfyUI-tjenesten\n• Sjekk at ComfyUI kjører på ${this.baseUrl}\n• Bruk /bildeforklaring for å analysere et eksisterende bilde i stedet`
+        };
+      }
+    }
     // Health check first
     const isHealthy = await this.checkHealth();
     if (!isHealthy) {
+      this.recordFailure();
       return {
         success: false,
-        error: `ComfyUI is ikke tilgjengelig. Sjekk at ComfyUI kjører på ${this.baseUrl}`
+        error: `ComfyUI er ikke tilgjengelig. Sjekk at ComfyUI kjører på ${this.baseUrl}`
       };
     }
-
     if (!this.checkRateLimit(userId)) {
-      const remaining = this.getRemainingRemainingTime(userId);
+      const remaining = this.getRemainingTime(userId);
       return {
         success: false,
         error: `Rate limit exceeded. ${remaining}`
       };
     }
-
     // Try primary workflow first
+    let primaryFailed = false;
     try {
       const workflow = this.buildWorkflow(prompt);
-      
       const response = await fetch(`${this.baseUrl}/prompt`, {
+
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           prompt: workflow
         })
       });
-
       if (!response.ok) {
         // Try fallback workflow on error
         console.log(`[ComfyUI] Primary workflow failed (${response.status}), trying fallback...`);
         const errorText = await response.text();
         console.log(`[ComfyUI] Error response body:`, errorText);
-        const fallbackWorkflow = this.buildSimpleWorkflow(prompt);
-        
-        const fallbackResponse = await fetch(`${this.baseUrl}/prompt`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            prompt: fallbackWorkflow
-          })
-        });
+        primaryFailed = true;
+      } else {
+        const data = await response.json() as { prompt_id: string };
+        const imageUrl = await this.waitForCompletion(data.prompt_id);
+        // Cache successful result
+        this.lastSuccessfulImageUrl = imageUrl;
+        this.lastImageTimestamp = Date.now();
+        this.recordSuccess();
 
-        if (!fallbackResponse.ok) {
-          return {
-            success: false,
-            error: `Begge bildegenereringsforsøk feilet. Primær: ${response.status}, Fallback: ${fallbackResponse.status}`
-          };
-        }
-
-        const fallbackData = await fallbackResponse.json() as { prompt_id: string };
-        const imageUrl = await this.waitForCompletion(fallbackData.prompt_id);
-        
         return {
           success: true,
           imageUrl
         };
       }
+    } catch (error) {
+      console.log(`[ComfyUI] Primary workflow exception:`, error);
+      primaryFailed = true;
+    }
 
-      const data = await response.json() as { prompt_id: string };
-      const imageUrl = await this.waitForCompletion(data.prompt_id);
-      
+    // Try fallback workflow
+    if (primaryFailed) {
+      try {
+        const fallbackWorkflow = this.buildSimpleWorkflow(prompt);
+        const fallbackResponse = await fetch(`${this.baseUrl}/prompt`, {
+          method: 'POST',
+
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: fallbackWorkflow
+          })
+        });
+        if (!fallbackResponse.ok) {
+          this.recordFailure();
+          return this.handleBothWorkflowsFailed();
+        }
+        const fallbackData = await fallbackResponse.json() as { prompt_id: string };
+        const imageUrl = await this.waitForCompletion(fallbackData.prompt_id);
+        // Cache successful result
+        this.lastSuccessfulImageUrl = imageUrl;
+        this.lastImageTimestamp = Date.now();
+        this.recordSuccess();
+
+        return {
+          success: true,
+          imageUrl
+        };
+      } catch (fallbackError) {
+        console.log(`[ComfyUI] Fallback workflow exception:`, fallbackError);
+        this.recordFailure();
+        return this.handleBothWorkflowsFailed();
+      }
+    }
+
+    // Should not reach here but just in case
+    this.recordFailure();
+    return this.handleBothWorkflowsFailed();
+  }
+
+  private handleBothWorkflowsFailed(): ImageResult {
+    // Try to return cached recent image
+    const now = Date.now();
+    if (this.lastSuccessfulImageUrl && (now - this.lastImageTimestamp) < this.CACHE_DURATION_MS) {
+      console.log(`[ComfyUI] Returning cached recent image`);
       return {
         success: true,
-        imageUrl
+        imageUrl: this.lastSuccessfulImageUrl,
+        error: 'Bruker nylig generert bilde (mindre enn 5 minutter gammelt)'
       };
-    } catch (error) {
-      return {
-        success: false,
-        error: `Failed to generate image: ${error}`
-      };
+    }
+
+    // Return friendly Norwegian error with retry instructions
+    const retryInstructions = this.getRetryInstructions();
+    return {
+      success: false,
+      error: `Beklager, bildegenereringen feilet. Begge arbeidsflyter (primær og fallback) mislyktes.\n\n${retryInstructions}`
+    };
+  }
+
+  private getRetryInstructions(): string {
+    return `Slik kan du prøve igjen:\n• Vent 1-2 minutter og prøv på nytt (ComfyUI kan være overbelastet)\n• Sjekk at ComfyUI kjører: ${this.baseUrl}/system_stats\n• Restart ComfyUI hvis den ikke svarer\n• Prøv å endre beskrivelsen din (kortere eller enklere tekst)\n• Bruk /bildeforklaring for å analysere et eksisterende bilde i stedet\n\nHvis problemet vedvarer, kontakt administrator.`;
+  }
+
+  private recordFailure(): void {
+    this.failureCount++;
+    console.log(`[ComfyUI] Failure recorded. Count: ${this.failureCount}/${this.CIRCUIT_FAILURE_THRESHOLD}`);
+
+    if (this.failureCount >= this.CIRCUIT_FAILURE_THRESHOLD) {
+      this.circuitState = 'open';
+      this.circuitOpenedAt = Date.now();
+      console.log(`[ComfyUI] Circuit breaker OPEN for ${this.CIRCUIT_RESET_TIMEOUT_MS / 1000} seconds`);
     }
   }
 
-  private getRemainingRemainingTime(userId: string): string {
+  private recordSuccess(): void {
+    this.failureCount = 0;
+    if (this.circuitState === 'half-open') {
+      this.circuitState = 'closed';
+      console.log(`[ComfyUI] Circuit breaker CLOSED (success after half-open)`);
+    }
+  }
+
+  private getRemainingTime(userId: string): string {
     const userQueue = this.queue.get(userId);
     if (!userQueue) return '1 time';
     const remaining = Math.max(0, userQueue.resetTime - Date.now());
@@ -147,7 +233,7 @@ export class ComfyUIClient {
       },
       "4": {
         "inputs": {
-          "ckpt_name": "v1-5-pruned-emaonly.safetensors"
+          "ckpt_name": COMFYUI_MODEL
         },
         "class_type": "CheckpointLoaderSimple"
       },
@@ -202,7 +288,7 @@ export class ComfyUIClient {
       },
       "2": {
         "inputs": {
-          "ckpt_name": "sd15_default.yaml"
+          "ckpt_name": COMFYUI_FALLBACK_MODEL
         },
         "class_type": "CheckpointLoader"
       },
