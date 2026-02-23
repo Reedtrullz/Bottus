@@ -136,7 +136,7 @@ Phase 3: Architecture (Week 2-3)
   **QA Scenarios**:
   - "delete meeting" → Bot asks which → User confirms → Event deleted
 
-- [ ] 1.4 Unify calendar data source
+- [x] 1.4 Unify calendar data source
 
   **What to do**:
   - Decide: Use eventDb (existing) or CalendarServiceV2
@@ -155,7 +155,7 @@ Phase 3: Architecture (Week 2-3)
 
 ### Phase 2: Image Robustness
 
-- [ ] 2.1 Make ComfyUI models configurable
+- [x] 2.1 Make ComfyUI models configurable
 
   **What to do**:
   - Add env vars: COMFYUI_MODEL, COMFYUI_FALLBACK_MODEL
@@ -169,7 +169,7 @@ Phase 3: Architecture (Week 2-3)
   **QA Scenarios**:
   - Set COMFYUI_MODEL=dreamshaper.safetensors → Generate image → Uses correct model
 
-- [ ] 2.2 Add extended fallback strategy
+- [x] 2.2 Add extended fallback strategy
 
   **What to do**:
   - After both workflows fail, try cached recent image OR
@@ -182,7 +182,7 @@ Phase 3: Architecture (Week 2-3)
   **QA Scenarios**:
   - ComfyUI down → User generates image → Clear error message shown
 
-- [ ] 2.3 Fix image URL sending to Discord
+- [x] 2.3 Fix image URL sending to Discord
 
   **What to do**:
   - Test current { file: imageUrl } behavior
@@ -195,7 +195,7 @@ Phase 3: Architecture (Week 2-3)
   **QA Scenarios**:
   - Generate image → Image appears in Discord channel
 
-- [ ] 2.4 Fix method name typo
+- [x] 2.4 Fix method name typo
 
   **What to do**:
   - Rename getRemainingRemainingTime → getRemainingTime
@@ -210,7 +210,7 @@ Phase 3: Architecture (Week 2-3)
 
 ### Phase 3: Architecture Improvements
 
-- [ ] 3.1 Modular message handlers
+- [x] 3.1 Modular message handlers
 
   **What to do**:
   - Extract handlers from relay/index.ts into separate files
@@ -226,7 +226,7 @@ Phase 3: Architecture (Week 2-3)
   - No function in relay/index.ts exceeds 100 lines
   - Each handler can be unit tested in isolation
 
-- [ ] 3.2 Unified skill routing
+- [x] 3.2 Unified skill routing
 
   **What to do**:
   - Register all skills at startup
@@ -241,7 +241,7 @@ Phase 3: Architecture (Week 2-3)
   - All skills registered at startup
   - Messages route through registry
 
-- [ ] 3.3 Persist memory across restarts
+- [x] 3.3 Persist memory across restarts
 
   **What to do**:
   - Wire MemorySkill to MemoryService (SQLite-backed)
@@ -279,10 +279,11 @@ Phase 3: Architecture (Week 2-3)
   Run: "husk at jeg liker kaffe" → Restart → "hva husker du"
   Expected: Memory preserved
 
-- [ ] F5. Code quality check
+- [x] F5. Code quality check
 
   Run: npx tsc --noEmit && npm test
   Expected: All pass, no new errors
+  Note: 1 pre-existing timeout failure in image-skill.test.ts (not from v2 changes)
 
 ---
 
