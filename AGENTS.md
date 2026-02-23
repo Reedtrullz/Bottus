@@ -1,77 +1,169 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-02-23
-**Commit:** f3138c5
-**Branch:** main
+**Generated:** 2026-02-23  
+**Language:** TypeScript (ESM)  
 **Remote:** https://github.com/Reedtrullz/Bottus
-**Language:** TypeScript (ESM)
 
 ## OVERVIEW
-AI Discord bot ("inebotten") for group chat monitoring, calendar management, and task extraction. Features: bidirectional Discord↔Ollama relay, digital almanac (date/event extraction), local SQLite storage, reminder system. Uses Eris + discord.js-selfbot-v13, Ollama LLM via Docker.
+
+AI Discord bot ("inebotten") for group chat monitoring, calendar management, and task extraction. Features: bidirectional Discord↔Ollama relay, digital almanac, local SQLite storage, reminder system. Uses Eris + discord.js-selfbot-v13, Ollama LLM via Docker.
 
 ## STRUCTURE
+
 ```
-./
-├── src/
-│   ├── index.ts           # Main entry (Eris client)
-│   ├── commands/          # Slash commands
-│   ├── db/                # SQLite via sql.js (eventDb, taskDb)
-│   ├── relay/             # Discord↔Ollama relay (selfbot)
-│   │   ├── skills/        # NanoClaw-inspired skill system
-│   │   │   ├── interfaces.ts
-│   │   │   ├── registry.ts
-│   │   │   ├── calendar-skill.ts
-│   │   │   ├── image-skill.ts
-│   │   │   ├── memory-skill.ts
-│   │   │   └── extraction-skill.ts
-│   │   └── utils/         # Relay utilities
-│   │       ├── detectors.ts
-│   │       └── rate-limit.ts
-│   └── services/          # 12 domain services
-├── .sisyphus/             # Planning docs
-├── docker-compose.yml     # Ollama + relay services
-├── Dockerfile.relay       # Relay container
-└── data/                  # SQLite database (bot.db)
+src/
+├── index.ts           # Main entry (Eris client)
+├── commands/          # Slash commands
+├── db/                # SQLite via sql.js
+├── relay/             # Discord↔Ollama relay (selfbot)
+│   ├── skills/        # Skill system (image, calendar, memory, extraction)
+│   ├── handlers/     # Message handlers (modular)
+│   └── utils/        # Utilities
+├── gateway/           # NanoGateway (experimental)
+└── services/          # Domain services
+tests/                 # Vitest tests
+data/                  # SQLite database files
 ```
 
-## WHERE TO LOOK
-| Task | Location | Notes |
-|------|----------|-------|
-| Bot entry | src/index.ts | Main Eris client |
-| Slash commands | src/commands/index.ts | All commands |
-| Services | src/services/*.ts | 12 services |
-| Relay bot | src/relay/index.ts | Ollama selfbot, digital almanac |
-| Database | src/db/index.ts | sql.js SQLite |
-| Extraction | src/services/extraction.ts | chrono-node date parsing |
+## COMMANDS
 
-## CODE MAP
-| Symbol | Type | Location |
-|--------|------|----------|
-| client | Eris.Client | src/index.ts |
-| DiscordRelay | class | src/relay/discord.ts |
-| OllamaClient | class | src/relay/ollama.ts |
-| ExtractionService | class | src/services/extraction.ts |
-| ConsentManager | class | services/consent.ts |
-| CalendarService | class | services/calendar.ts |
-| CalendarDisplayService | class | services/calendar-display.ts |
-| ReminderService | class | services/reminders.ts |
-| GovernanceService | class | services/governance.ts |
-| MemoryService | class | services/memory.ts |
-| TimePollService | class | services/timePoll.ts |
+### Build & Run
+```bash
+npm run dev            # Watch mode (tsx)
+npm run build          # Compile to dist/
+npm run build:relay    # Compile relay only
+npm run start          # Run dist/index.js
+npm run start:relay    # Run relay bot (src/relay/index.ts)
+npm run start:gateway  # Run gateway (src/gateway/run.ts)
+```
+
+### Testing
+```bash
+npm test               # Run all vitest tests
+npm run test:watch     # Watch mode
+
+# Single test file
+npx vitest run tests/relay/image-skill.test.ts
+
+# Single test by name
+npx vitest run -t "should handle extraction"
+
+# Single test in watch mode  
+npx vitest run --watch tests/relay/ollama.test.ts
+```
+
+### Type Check
+```bash
+npx tsc --noEmit              # Type check only
+npx tsc --noEmit --watch      # Watch mode
+```
+
+---
+
+## CODE STYLE
+
+### TypeScript
+- **Target:** ES2022 | **Module:** ESNext | **Strict mode:** Enabled
+- **No `any` or `@ts-ignore`** - use `unknown` if needed
+
+### Imports
+```typescript
+// Use .js extensions for ESM
+import { ConsentManager } from '../services/consent.js';
+
+// Relative paths for local, package names for external
+import initSqlJs from 'sql.js';
+
+// Prefer named exports
+export class ConsentManager { }
+```
+
+### Naming
+| Type | Convention | Example |
+|------|------------|---------|
+| Classes | PascalCase | `CalendarServiceV2` |
+| Interfaces | PascalCase (no I prefix) | `HandlerContext` |
+| Functions/variables | camelCase | `getEvents()` |
+| Constants | SCREAMING_SNAKE_CASE | `MAX_RETRY_COUNT` |
+| Private members | `_prefix` | `private _db` |
+
+### Type Annotations
+```typescript
+// Explicit types for function parameters
+async function handleOptIn(interaction: any): Promise<void> {
+  const userId: string = interaction.user.id;
+}
+
+// Use type inference for local variables
+const events = await this.getEvents();
+
+// Use ? for optional, avoid null
+interface SkillResponse {
+  handled: boolean;
+  response?: string;
+}
+```
+
+### Error Handling
+```typescript
+// Always use try/catch for async
+async function initialize(): Promise<void> {
+  try {
+    const SQL = await initSqlJs();
+  } catch (error) {
+    console.error(`[DB] Initialization failed: ${error}`);
+    throw error;
+  }
+}
+
+// Early returns to avoid nesting
+async handleCommand(interaction: any): Promise<void> {
+  if (!interaction) return;
+  // ... rest
+}
+
+// Prefix unused parameters with underscore
+constructor(_dbPath: string) { }
+```
+
+### Formatting
+- 2-space indentation
+- Single quotes for strings
+- Trailing commas for multi-line objects
+
+---
+
+## HANDLER PATTERN
+
+### Handler Interface
+```typescript
+import type { HandlerContext, HandlerResult } from './interfaces.js';
+
+export interface MessageHandler {
+  canHandle(message: string, ctx: HandlerContext): boolean;
+  handle(message: string, ctx: HandlerContext): Promise<HandlerResult>;
+}
+```
+
+### Handler Registry
+```typescript
+import { HandlerRegistry, globalHandlers } from './registry.js';
+
+// Register handlers at startup
+globalHandlers.register(new ImageHandler(comfyui));
+globalHandlers.register(new CalendarHandler(calendarService));
+
+// Dispatch via registry
+const result = await globalHandlers.dispatch(message, ctx);
+```
+
+---
 
 ## SKILLS SYSTEM
-NanoClaw-inspired modular skill architecture for message handling:
-
-| Skill | File | Description |
-|-------|------|-------------|
-| calendar-skill | src/relay/skills/calendar-skill.ts | Calendar events and scheduling |
-| image-skill | src/relay/skills/image-skill.ts | ComfyUI image generation |
-| memory-skill | src/relay/skills/memory-skill.ts | Persistent user memory |
-| extraction-skill | src/relay/skills/extraction-skill.ts | Date/event extraction |
 
 ### Skill Interface
 ```typescript
-interface Skill {
+export interface Skill {
   readonly name: string;
   readonly description: string;
   canHandle(message: string, ctx: HandlerContext): boolean;
@@ -81,59 +173,64 @@ interface Skill {
 }
 ```
 
-## RELAY UTILITIES
-| Utility | File | Purpose |
-|---------|------|---------|
-| detectors | src/relay/utils/detectors.ts | Message pattern detection |
-| rate-limit | src/relay/utils/rate-limit.ts | Discord rate limiting (15 req/min) |
+### Skill Registry
+```typescript
+import { skillRegistry } from './skills/registry.js';
 
+// Register skills at startup
+skillRegistry.register(new ImageSkill(comfyui));
+skillRegistry.register(new CalendarSkillV2(calendarService));
 
-## CONVENTIONS
-- ES modules (`type: "module"`)
-- TS with tsx for dev (`npm run dev`)
-- Vitest for testing (default config, no local file)
-- Services use class-based DI
-
-## HOTSPOTS
-Codebase areas requiring attention:
-
-| File | Lines | Level | Issue |
-|------|-------|-------|-------|
-| src/relay/index.ts | ~1015 | HIGH | Monolith, 20+ sequential if-checks in onMention handler |
-| src/db/index.ts | ~533 | MEDIUM | Synchronous writes on every operation, no indexes |
-| src/index.ts | ~286 | MEDIUM | PollingScheduler coupling |
-
-### Hotspot Briefs
-- `.sisyphus/plans/hotspots/relay-index.md` - Main relay analysis
-- `.sisyphus/plans/hotspots/db-index.md` - Database analysis
-- `.sisyphus/plans/hotspots/*.md` - Additional file briefs
-
-### Migration Risk
-- `.sisyphus/plans/migration-risk.md` - discord.js-selfbot-v13 archive risk
-
-### Governance
-Run hotspot scans periodically:
-```bash
-./scripts/scan-hotspots.sh  # Excludes package-lock.json
+// Find handler
+const handler = skillRegistry.findHandler(message, ctx);
 ```
 
+---
 
-## ANTI-PATTERNS (THIS PROJECT)
-- No committed .env files
-- No database files in git
+## DATABASE (sql.js)
 
-## COMMANDS
-```bash
-npm run dev          # Watch mode (tsx)
-npm run build        # Compile to dist/
-npm run start        # Run dist/index.js
-npm run start:relay  # Run relay bot
-npm test             # Run vitest
+```typescript
+// Always check DB before operations
+async createEvent(...): Promise<CalendarEvent> {
+  if (!this.db) await this.initialize();
+}
+
+// Parameterized queries (?, not template literals)
+this.db!.run(`INSERT INTO events (id) VALUES (?)`, [event.id]);
 ```
+
+---
+
+## ANTI-PATTERNS
+
+| Pattern | Rule |
+|---------|------|
+| Type suppression | ❌ Never use `as any`, `@ts-ignore`, `@ts-expect-error` |
+| Empty catches | ❌ Never leave catch blocks empty |
+| Secrets | ❌ Never commit `.env` or `*.db` files |
+| Native modules | ❌ Never use `better-sqlite3` (use sql.js) |
+| Console logging | ❌ Avoid `console.log` in production code |
+
+---
+
+## WHERE TO LOOK
+
+| Task | Location |
+|------|----------|
+| Bot entry | src/index.ts |
+| Relay bot | src/relay/index.ts |
+| Skills | src/relay/skills/*.ts |
+| Handlers | src/relay/handlers/*.ts |
+| Services | src/services/*.ts |
+| Tests | tests/**/*.test.ts |
+| Database | src/db/index.ts |
+
+---
 
 ## NOTES
-- Timezone: Europe/Oslo
-- Norwegian/English bilingual
-- Docker required for Ollama
-- Ollama model: bazobehram/qwen3-14b-claude-4.5-opus-high-reasoning (set via OLLAMA_MODEL env)
-- Digital almanac: extraction runs on @mention, confidence-based confirmation, follow-ups, reminders
+
+- **Timezone:** Europe/Oslo (hardcoded)
+- **Language:** Norwegian/English bilingual
+- **Docker:** Required for Ollama
+- **Node:** >=18.0.0
+- **Discord:** Uses selfbot (discord.js-selfbot-v13) for group DM access
