@@ -4,13 +4,15 @@ import { initializeDatabase, suggestionsDb } from './db/index.js';
 import { ConsentManager } from './services/consent.js';
 import { MessageIngestion } from './services/ingestion.js';
 import { ExtractionService } from './services/extraction.js';
-import { CalendarService } from './services/calendar.js';
+import { CalendarServiceV2 } from './services/calendar-v2.js';
 import { ReminderService } from './services/reminders.js';
 import { DataRetentionService } from './services/retention.js';
 import { ToneLearningService } from './services/tone.js';
 import { AIService } from './services/ai.js';
 import { governanceService } from './services/governance.js';
 import { registerCommands } from './commands/index.js';
+import { SisyphusLearner } from './scripts/sisyphus-learner.js';
+import { startNightlyCron } from './scripts/nightly-cron.js';
 
 config();
 
@@ -18,12 +20,17 @@ const token = (process.env.DISCORD_USER_TOKEN || process.env.DISCORD_BOT_TOKEN |
 
 const consentManager = new ConsentManager();
 const extractionService = new ExtractionService();
-const calendarService = new CalendarService();
+const calendarService = new CalendarServiceV2('./data/calendar.db');
 const reminderService = new ReminderService();
 const retentionService = new DataRetentionService();
 const toneLearningService = new ToneLearningService();
 const aiService = new AIService();
 const messageIngestion = new MessageIngestion(consentManager, extractionService, toneLearningService);
+
+// Sisyphus self-improvement system
+const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'mistral:7b-instruct';
+const sisyphusLearner = new SisyphusLearner('./data/interactions.db', OLLAMA_URL, OLLAMA_MODEL, 50);
 
 const processedMessages = new Set<string>();
 
@@ -62,12 +69,32 @@ const client = new Client(token, {
   intents: 32767, // All intents
 });
 
+// Discord wrapper for calendar service (provides sendMessage interface)
+const discordWrapper = {
+  sendMessage: async (channelId: string, message: string): Promise<any> => {
+    const channel = client.getChannel(channelId);
+    if (channel) {
+      return (channel as any).createMessage(message);
+    }
+    console.error(`[Calendar] Channel not found: ${channelId}`);
+    return null;
+  }
+};
+
 client.on('ready', async () => {
   console.log(`✅ Logged in as ${client.user.username}#${client.user.discriminator}`);
   console.log(`   My User ID: ${client.user.id}`);
   
   await initializeDatabase();
   console.log('📦 Database initialized');
+  
+  await calendarService.initialize();
+  calendarService.setDiscord(discordWrapper);
+  console.log('📅 Calendar service initialized');
+  
+  // Initialize and start Sisyphus self-improvement nightly cron
+  await sisyphusLearner.initialize();
+  startNightlyCron(sisyphusLearner, 3, 0); // Run at 03:00 daily
   
   await registerCommands(client);
   
