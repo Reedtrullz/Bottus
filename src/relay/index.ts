@@ -4,14 +4,24 @@ import { eventDb, taskDb, initializeDatabase, metricsDb } from '../db/index.js';
 import { ExtractionService, ExtractedItem } from '../services/extraction.js';
 import { rsvpDb } from '../db/index.js';
 import { OllamaClient } from './ollama.js';
+import { CircuitBreaker } from '../utils/error-recovery.js';
 import { ComfyUIClient } from '../services/comfyui.js';
+import { t } from '../utils/i18n.js';
 import { isQueryMessage, isCalendarQuery, isTechStackQuery, isFeaturesQuery, isSelfAnalysisQuery, isMemoryStore, isMemoryQuery, extractImagePrompt } from './utils/detectors.js';
-import { FeaturesHandler, TechStackHandler, HelpHandler, HandlerContext } from './handlers/index.js';
+import { FeaturesHandler, TechStackHandler, HelpHandler, HandlerContext, ImageHandler, CalendarHandler, DayDetailsHandler, MemoryHandler, ClarificationHandler } from './handlers/index.js';
 
 let comfyui: any = null;
+const ollamaBreaker = new CircuitBreaker();
 import { OpenClawClient, calendarTools } from './openclaw-client.js';
 import { PlanRouter } from './plan-router.js';
+import { FeedbackHandler } from './handlers/feedback.js';
 import { selfImprovement } from '../services/self-improvement.js';
+import { skillRegistry, HandlerContext as SkillHandlerContext } from './skills/registry.js';
+import { ImageSkill } from './skills/image-skill.js';
+import { CalendarSkillV2 } from './skills/calendar-skill-v2.js';
+import { MemorySkill } from './skills/memory-skill.js';
+import { ExtractionSkill } from './skills/extraction-skill.js';
+import { CalendarServiceV2 } from '../services/calendar-v2.js';
 
 // Norwegian date/time context for OpenClaw prompts
 function getDateTimeContext(now?: Date): string {
@@ -49,20 +59,20 @@ export function createOpenClawToolExecutor(discord: any, userId: string, channel
       switch (toolName) {
         case 'create_event': {
           const { title, startTime, endTime, description } = args || {};
-          const eventId = await eventDb.create({ userId, channelId, title, startTime, endTime, description });
-          return `Event created: ${eventId}`;
+          await eventDb.create({ userId, channelId, title, startTime, endTime, description });
+          return t('calendar.created', undefined, { title: title ?? '' });
         }
         case 'list_events': {
           const limit = Number(args?.limit) || 20;
           const events: any[] = await eventDb.findUpcoming(limit);
-          if (!events?.length) return 'No upcoming events';
+          if (!events?.length) return t('calendar.noEvents');
           return events.map((e) => `- [${e.id}] ${e.title} at ${e.startTime}`).join('\n');
         }
         case 'get_event': {
           const id = args?.id;
           const list: any[] = await eventDb.findUpcoming(1000);
           const found = list.find((e) => e.id === id);
-          return found ? JSON.stringify(found) : `Event not found: ${id}`;
+          return found ? JSON.stringify(found) : t('errors.generic');
         }
         case 'update_event': {
           const id = args?.id;
@@ -71,36 +81,36 @@ export function createOpenClawToolExecutor(discord: any, userId: string, channel
           const existing = list.find((e) => e.id === id);
           if (!existing) return `Event not found: ${id}`;
           const merged = { ...existing, ...updates };
-          const newId = await eventDb.create({ userId, channelId, title: merged.title, startTime: merged.startTime, endTime: merged.endTime, description: merged.description });
+          await eventDb.create({ userId, channelId, title: merged.title, startTime: merged.startTime, endTime: merged.endTime, description: merged.description });
           await eventDb.delete(id);
-          return `Event updated: new id ${newId} (replaced ${id})`;
+          return t('calendar.created', undefined, { title: merged.title ?? '' });
         }
         case 'delete_event': {
           const delId = args?.id;
           await eventDb.delete(delId);
-          return `Event deleted: ${delId}`;
+          return `${t('calendar.deleted')} (id ${delId})`;
         }
         case 'set_reminder': {
           const { title, dueTime, relatedEventId } = args || {};
           const reminderTitle = title ?? `Reminder${relatedEventId ? ` for ${relatedEventId}` : ''}`;
-          const taskId = await taskDb.create({ userId, channelId, title: reminderTitle, dueTime });
-          return `Reminder set: ${taskId}`;
+          await taskDb.create({ userId, channelId, title: reminderTitle, dueTime });
+          return t('calendar.created', undefined, { title: reminderTitle });
         }
         case 'list_reminders': {
           const reminders: any[] = await taskDb.findPending();
-          if (!reminders?.length) return 'No reminders';
+          if (!reminders?.length) return t('calendar.noEvents');
           return reminders.map((r) => `- ${r.title} (due ${r.dueTime}, id ${r.id})`).join('\n');
         }
         case 'cancel_reminder': {
           const remId = args?.id;
           await taskDb.complete(remId);
-          return `Reminder cancelled: ${remId}`;
+          return `${t('calendar.deleted')} (id ${remId})`;
         }
         default:
-          return `Unknown tool: ${toolName}`;
+          return t('errors.unknownTool', undefined, { toolName });
       }
     } catch (err: any) {
-      return `Error executing ${toolName}: ${err?.message ?? err}`;
+      return `${t('errors.generic')}`;
     }
   };
   return executor;
@@ -278,7 +288,7 @@ const OPENCLAW_MODEL = process.env.OPENCLAW_MODEL || 'openclaw';
   console.log('[Relay] Starting Ine Ollama Relay...');
 
   if (!DISCORD_TOKEN) {
-    console.error('[Relay] ERROR: DISCORD_USER_TOKEN must be set');
+    console.error('[Relay] ERROR:', t('errors.missingToken'));
     process.exit(1);
   }
 
@@ -338,7 +348,7 @@ const OPENCLAW_MODEL = process.env.OPENCLAW_MODEL || 'openclaw';
           if (text) {
             await (discord as any).sendMessage(channelId, text, { embed: embed as any });
           } else {
-            await interaction.reply({ content: 'Kalender navigasjon kunne ikke oppdateres.', ephemeral: true });
+            await interaction.reply({ content: t('calendar.updateFailed'), ephemeral: true });
           }
           try { await interaction.deferUpdate?.(); } catch { }
         } catch {
@@ -353,17 +363,25 @@ const OPENCLAW_MODEL = process.env.OPENCLAW_MODEL || 'openclaw';
   try {
     const client: any = (discord as any).getClient?.();
     if (client) {
-      client.on('messageReactionAdd', async (reaction: any, user: any) => {
-        if (!reaction?.message) return;
-        const msgId = reaction.message.id;
-        const eventId = eventConfirmationMap.get(msgId);
-        if (!eventId) return;
-        const emoji = reaction.emoji?.name;
-        const status = emoji === '✅' ? 'yes' : emoji === '❌' ? 'no' : emoji === '🤔' ? 'maybe' : null;
-        if (status) {
-          try { await rsvpDb.upsert(eventId, user?.id ?? '', status); } catch {}
-        }
-      });
+  client.on('messageReactionAdd', async (reaction: any, user: any) => {
+    if (!reaction?.message) return;
+    const msgId = reaction.message.id;
+    const eventId = eventConfirmationMap.get(msgId);
+    if (!eventId) return;
+    const emoji = reaction.emoji?.name;
+    const status = emoji === '✅' ? 'yes' : emoji === '❌' ? 'no' : emoji === '🤔' ? 'maybe' : null;
+    if (status) {
+      try { await rsvpDb.upsert(eventId, user?.id ?? '', status); } catch {}
+    }
+    // Also log thumbs feedback to FeedbackHandler when available
+    try {
+      if (emoji === '👍' || emoji === '👎') {
+        await feedbackHandler.handleReaction(msgId, user?.id ?? '', emoji);
+      }
+    } catch {
+      // best-effort logging; ignore failures to avoid breaking flow
+    }
+  });
       client.on('messageReactionRemove', async (reaction: any, user: any) => {
         if (!reaction?.message) return;
         const msgId = reaction.message.id;
@@ -385,7 +403,24 @@ const OPENCLAW_MODEL = process.env.OPENCLAW_MODEL || 'openclaw';
   // Memory service (store/recall memories)
   const memory = new MemoryService();
   const planRouter = new PlanRouter();
+  // Feedback handler for logging and critique
+  const feedbackHandler = new FeedbackHandler('./data/interactions.db', './data/critic-prompt.txt', OLLAMA_URL, OLLAMA_MODEL);
+  // Lightweight FeedbackService instance (kept for backward compatibility in existing paths)
   const feedback = new FeedbackService();
+
+  // Register modular handlers
+  const imageHandler = new ImageHandler(comfyui);
+  const calendarHandler = new CalendarHandler(weekOffsets);
+  const dayDetailsHandler = new DayDetailsHandler();
+  const memoryHandler = new MemoryHandler(memory, pendingClarifications);
+  const clarificationHandler = new ClarificationHandler(memory, pendingClarifications);
+
+  // Register skills with the skillRegistry at startup
+  const calendarV2 = new CalendarServiceV2('./data/calendar-v2.db');
+  skillRegistry.register(new ImageSkill());
+  skillRegistry.register(new CalendarSkillV2(calendarV2));
+  skillRegistry.register(new MemorySkill());
+  skillRegistry.register(new ExtractionSkill());
 
   // Flow handler: processes extraction results and continues the relay flow
   const handleExtractionFlow = async (
@@ -448,18 +483,27 @@ const OPENCLAW_MODEL = process.env.OPENCLAW_MODEL || 'openclaw';
   const promptForOllama = memoryContext ? `${memoryContext}\n${enhancedMessage}` : enhancedMessage;
 
   const startTime = Date.now();
+  let response = '';
   try {
-    const response = await ollama.sendMessage(promptForOllama);
+    response = await ollamaBreaker.execute(() => ollama.sendMessage(promptForOllama));
     const responseTimeMs = Date.now() - startTime;
     const userIdForMetrics = (discord as any).getUserId?.() ?? '';
     metricsDb.record({ userId: userIdForMetrics, responseTimeMs, model: OLLAMA_MODEL });
     const userIdForTone = (discord as any).getUserId?.() ?? '';
     const tonedResponse = ToneService.apply(response, userIdForTone);
-    await discord.sendMessage(channelId, tonedResponse);
+    const sent = await discord.sendMessage(channelId, tonedResponse);
+    const messageId = (sent as any)?.id ?? '';
+    try {
+      const interaction = await feedbackHandler.logInteraction(messageId, channelId, userIdForMemory, enhancedMessage, tonedResponse, []);
+      // critique asynchronously (fire-and-forget)
+      void feedbackHandler.critiqueResponse?.(interaction, enhancedMessage);
+    } catch {
+      // ignore logging/critique failures to avoid breaking bot flow
+    }
     console.log('[Relay] Extraction flow: response sent to Discord');
-  } catch (err) {
-    const responseTimeMs = Date.now() - startTime;
+  } catch (err: any) {
     const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+    const responseTimeMs = Date.now() - startTime;
     const userIdForMetrics = (discord as any).getUserId?.() ?? '';
     metricsDb.record({ userId: userIdForMetrics, responseTimeMs, errorCount: 1, model: OLLAMA_MODEL });
     console.error('[Relay] Extraction flow error:', errorMessage);
@@ -468,13 +512,19 @@ const OPENCLAW_MODEL = process.env.OPENCLAW_MODEL || 'openclaw';
 
 }; // end of handleExtractionFlow
 
-      console.log('[Relay] Checking Ollama connectivity...');
-      const healthy = await ollama.healthCheck();
-      if (!healthy) {
-        console.warn('[Relay] WARNING: Ollama not reachable. Will retry on messages.');
-      } else {
-        console.log('[Relay] Ollama is reachable');
-      }
+  console.log('[Relay] Checking Ollama connectivity...');
+  let healthy = false;
+  try {
+    healthy = await ollamaBreaker.execute(() => ollama.healthCheck());
+  } catch (err: any) {
+    healthy = false;
+    console.warn('[Relay] Ollama health check blocked by circuit breaker:', (err?.message ?? err));
+  }
+  if (!healthy) {
+    console.warn('[Relay] Ollama not reachable (circuit breaker or network). Will retry on messages.');
+  } else {
+    console.log('[Relay] Ollama is reachable');
+  }
       // Readiness check for ComfyUI after Ollama health check
       // Also send Discord DM if READY_USER is set
       const READY_USER = process.env.READY_USER || 'reedtrullz';
@@ -512,8 +562,9 @@ const OPENCLAW_MODEL = process.env.OPENCLAW_MODEL || 'openclaw';
         if (_imagePrompt && comfyui) {
           try {
 const result = await comfyui.generateImage(_imagePrompt, userId);
-if (result.success && result.imageUrl) {
-  await discord.sendMessage(channelId, '🖼️ Bildet ditt:', { file: result.imageUrl });
+        if (result.success && result.imageUrl) {
+  // Send only the URL as the message content (no file payload)
+  await discord.sendMessage(channelId, `${result.imageUrl}`);
 } else {
   console.warn('[Relay] Image generation failed:', result.error);
   await discord.sendMessage(channelId, 'Beklager, bildegenerering feilet: ' + (result.error || 'ukjent feil'));
@@ -541,7 +592,12 @@ if (result.success && result.imageUrl) {
         }
 
 // Dispatch to registered handlers
-const handlerCtx: HandlerContext = { message: userMessage, userId, channelId, discord };
+const handlerCtx: HandlerContext = { 
+  message: userMessage, 
+  userId, 
+  channelId, 
+  discord
+};
 
 // Check canHandle first, then call handle
 // FeaturesHandler removed - HelpHandler now handles all help queries
@@ -554,6 +610,37 @@ if (helpHandler.canHandle(userMessage, handlerCtx)) {
   const helpResult = await helpHandler.handle(userMessage, handlerCtx);
   console.log('[Relay] HelpHandler result:', helpResult);
   if (helpResult.handled) return;
+}
+
+// Unified skill routing using skillRegistry
+const skillCtx: SkillHandlerContext = { message: userMessage, userId, channelId, discord, extraction, memory };
+const skill = skillRegistry.findHandler(userMessage, skillCtx);
+if (skill) {
+  console.log(`[Relay] Skill matched: ${skill.name}`);
+  const skillResult = await skill.handle(userMessage, skillCtx);
+  if (skillResult.handled) return;
+}
+
+// Dispatch to modular handlers (dayDetails, clarification)
+if (imageHandler.canHandle(userMessage, handlerCtx)) {
+  const imgResult = await imageHandler.handle(userMessage, handlerCtx);
+  if (imgResult.handled) return;
+}
+if (calendarHandler.canHandle(userMessage, handlerCtx)) {
+  const calResult = await calendarHandler.handle(userMessage, handlerCtx);
+  if (calResult.handled) return;
+}
+if (dayDetailsHandler.canHandle(userMessage, handlerCtx)) {
+  const dayResult = await dayDetailsHandler.handle(userMessage, handlerCtx);
+  if (dayResult.handled) return;
+}
+if (memoryHandler.canHandle(userMessage, handlerCtx)) {
+  const memResult = await memoryHandler.handle(userMessage, handlerCtx);
+  if (memResult.handled) return;
+}
+if (clarificationHandler.canHandle(userMessage, handlerCtx)) {
+  const clarResult = await clarificationHandler.handle(userMessage, handlerCtx);
+  if (clarResult.handled) return;
 }
 
   // Phase 3: per-user tone set command (NB-NO friendly) - allow minor configuration via chat
@@ -678,7 +765,7 @@ if (helpHandler.canHandle(userMessage, handlerCtx)) {
     // Self-analysis trigger: analyze bot performance
     if (isSelfAnalysisQuery(userMessage)) {
       try {
-        await discord.sendMessage(channelId, '🔍 Analyzer ytelsen min...');
+        await discord.sendMessage(channelId, t('selfAnalysis.start'));
         const result = await selfImprovement.analyze(50);
         const stats = selfImprovement.getStats();
         const lines = [
@@ -700,7 +787,7 @@ if (helpHandler.canHandle(userMessage, handlerCtx)) {
         await discord.sendMessage(channelId, lines.join('\n'));
       } catch (err) {
         console.error('[Relay] Self-analysis error:', err);
-        await discord.sendMessage(channelId, 'Kunne ikke kjøre analyse. Sjekk loggene.');
+        await discord.sendMessage(channelId, t('selfAnalysis.error'));
       }
       return;
     }
@@ -840,7 +927,7 @@ if (helpHandler.canHandle(userMessage, handlerCtx)) {
         }
       } catch (err) {
         console.error('[Relay] Calendar embed error:', err);
-        await discord.sendMessage(channelId, 'Feil ved henting av kalender.');
+        await discord.sendMessage(channelId, t('calendar.fetchFailed'));
       }
       return;
     }

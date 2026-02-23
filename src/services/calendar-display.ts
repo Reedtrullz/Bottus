@@ -1,4 +1,5 @@
 import { eventDb, taskDb } from '../db/index.js';
+import { CalendarServiceV2 } from './calendar-v2.js';
 import { formatInTimeZone } from 'date-fns-tz';
 import { startOfWeek, addDays, format } from 'date-fns';
 import { nb } from 'date-fns/locale';
@@ -8,8 +9,11 @@ type EmbedField = { name: string; value: string; inline?: boolean };
 
 export class CalendarDisplayService {
   private static TIMEZONE = 'Europe/Oslo';
+  private calendarService: CalendarServiceV2 | null = null;
 
-  constructor() {}
+  constructor(calendarService?: CalendarServiceV2) {
+    this.calendarService = calendarService ?? null;
+  }
   /**
    * Get detailed day view for a given date.
    * Returns an array of events with full details: title, start_time, end_time, description, attendees, rsvp_status
@@ -66,7 +70,24 @@ export class CalendarDisplayService {
     targetMonth?: number,
     targetYear?: number
   ): Promise<{ title?: string; color?: number; fields?: EmbedField[]; components?: any[] } | null> {
-    const upcomingEvents = events ?? (eventDb.findUpcoming() as any[]);
+    // Use CalendarServiceV2 if available, fallback to eventDb
+    let upcomingEvents = events;
+    if (!upcomingEvents && this.calendarService) {
+      try {
+        const calEvents = await this.calendarService.getEvents('default', 'all');
+        upcomingEvents = calEvents.map((ev: any) => ({
+          id: ev.id,
+          title: ev.title,
+          start_time: Math.floor(ev.startTime / 1000),
+          end_time: ev.endTime ? Math.floor(ev.endTime / 1000) : undefined,
+          description: ev.description,
+          recurrence_rule: ev.recurrence,
+        }));
+      } catch {
+        upcomingEvents = [];
+      }
+    }
+    upcomingEvents = upcomingEvents ?? (eventDb.findUpcoming() as any[]);
     const pendingTasks = tasks ?? (taskDb.findPending() as any[]);
 
     const today = new Date();

@@ -1,4 +1,5 @@
 import type { Skill, SkillRegistry, HandlerContext } from './interfaces.js';
+export type { HandlerContext };
 
 export class InMemorySkillRegistry implements SkillRegistry {
   private skills: Map<string, Skill> = new Map();

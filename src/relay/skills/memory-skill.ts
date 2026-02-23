@@ -1,4 +1,5 @@
 import type { Skill, HandlerContext, SkillResponse } from './interfaces.js';
+import { MemoryService } from '../../services/memory.js';
 
 const MEMORY_STORE_PATTERNS = [
   /\b(husk|husk at|husk jeg er)\b/i
@@ -12,7 +13,11 @@ export class MemorySkill implements Skill {
   readonly name = 'memory';
   readonly description = 'Store and recall user memories';
 
-  private memories: Map<string, any[]> = new Map();
+  private memoryService: MemoryService;
+
+  constructor() {
+    this.memoryService = new MemoryService();
+  }
 
   canHandle(message: string, _ctx: HandlerContext): boolean {
     if (!message) return false;
@@ -28,9 +33,7 @@ export class MemorySkill implements Skill {
       const match = message.match(/(?:^|\s)(husk|husk at|husk jeg er)\b\s*(.*)/i);
       const textToStore = match?.[2]?.trim() ?? message;
       
-      const userMemories = this.memories.get(ctx.userId) || [];
-      userMemories.push({ text: textToStore, timestamp: Date.now() });
-      this.memories.set(ctx.userId, userMemories);
+      await this.memoryService.store(ctx.userId, textToStore);
       
       return {
         handled: true,
@@ -40,9 +43,9 @@ export class MemorySkill implements Skill {
     }
     
     if (MEMORY_QUERY_PATTERNS.some(p => p.test(m))) {
-      const userMemories = this.memories.get(ctx.userId) || [];
-      if (userMemories.length > 0) {
-        const items = userMemories.slice(0, 5).map((mm, idx) => `${idx + 1}. ${mm.text}`);
+      const memories = await this.memoryService.recall(ctx.userId);
+      if (memories.length > 0) {
+        const items = memories.slice(0, 5).map((mm: any, idx: number) => `${idx + 1}. ${mm.fact}`);
         return {
           handled: true,
           response: `Husker jeg:\n${items.join('\n')}`,
@@ -59,11 +62,11 @@ export class MemorySkill implements Skill {
     return { handled: false, shouldContinue: true };
   }
 
-  getMemory(channelId: string): any[] {
-    return this.memories.get(channelId) || [];
+  async getMemory(userId: string): Promise<any[]> {
+    return this.memoryService.recall(userId);
   }
 
-  setMemory(channelId: string, memory: any[]): void {
-    this.memories.set(channelId, memory);
+  async setMemory(userId: string, fact: string): Promise<void> {
+    await this.memoryService.store(userId, fact);
   }
 }
