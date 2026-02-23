@@ -1,14 +1,17 @@
-import { Skill, HandlerContext, SkillResponse } from './interfaces.js';
-import { CalendarServiceV2 } from '../../services/calendar-v2.js';
+import type { Skill, HandlerContext, SkillResponse } from './interfaces.js';
+import type { CalendarServiceV2 } from '../../services/calendar-v2.js';
+import { CalendarDisplayService } from '../../services/calendar-display.js';
 
 export class CalendarSkillV2 implements Skill {
   readonly name = 'calendar-v2';
-  readonly description = 'Local calendar with recurring events, reminders, and ICS export';
+  readonly description = 'Local calendar with recurring events, reminders, ICS export, and week/month views';
 
   private calendar: CalendarServiceV2;
+  private displayService: CalendarDisplayService;
 
   constructor(calendar: CalendarServiceV2) {
     this.calendar = calendar;
+    this.displayService = new CalendarDisplayService(calendar);
   }
 
   canHandle(message: string, _ctx: HandlerContext): boolean {
@@ -34,6 +37,14 @@ export class CalendarSkillV2 implements Skill {
     
     if (lower.includes('list') || lower.includes('what\'s coming') || lower.includes('hva skjer')) {
       return this.listEvents(message, channelId);
+    }
+
+    if (lower.includes('week') || lower.includes('uke') || lower.includes('kalender uke')) {
+      return this.showWeekView(channelId, message);
+    }
+
+    if (lower.includes('month') || lower.includes('måned') || lower.includes('kalender måned') || lower.includes('måned')) {
+      return this.showMonthView(channelId, message);
     }
 
     if (lower.includes('today') || lower.includes('idag')) {
@@ -115,6 +126,56 @@ export class CalendarSkillV2 implements Skill {
     return { handled: true, response };
   }
 
+  private async showWeekView(_channelId: string, _message: string): Promise<SkillResponse> {
+    try {
+      const weekEmbed = await this.displayService.buildWeekEmbed(undefined, undefined, 0);
+      if (weekEmbed?.fields?.length) {
+        let response = '📅 **Denne uken:**\n';
+        for (const field of weekEmbed.fields) {
+          response += `\n${field.name}: ${field.value}`;
+        }
+        return { handled: true, response };
+      }
+      return { handled: true, response: 'Ingen hendelser denne uken.' };
+    } catch {
+      return { handled: true, response: 'Kunne ikke hente ukesvisning.' };
+    }
+  }
+
+  private async showMonthView(_channelId: string, message: string): Promise<SkillResponse> {
+    const lower = message.toLowerCase();
+    let targetMonth: number | undefined;
+    let targetYear: number | undefined;
+
+    const months = ['januar', 'februar', 'mars', 'april', 'mai', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'desember'];
+    for (let i = 0; i < months.length; i++) {
+      if (lower.includes(months[i])) {
+        targetMonth = i;
+        break;
+      }
+    }
+
+    const yearMatch = message.match(/\b(20\d{2})\b/);
+    if (yearMatch) {
+      targetYear = parseInt(yearMatch[1], 10);
+    }
+
+    try {
+      const weekEmbed = await this.displayService.buildWeekEmbed(undefined, undefined, 0, targetMonth, targetYear);
+      if (weekEmbed?.fields?.length) {
+        const monthName = targetMonth !== undefined ? months[targetMonth] : 'denne måneden';
+        let response = `📅 **${monthName}${targetYear ? ` ${targetYear}` : ''}:**\n`;
+        for (const field of weekEmbed.fields) {
+          response += `\n${field.name}: ${field.value}`;
+        }
+        return { handled: true, response };
+      }
+      return { handled: true, response: `Ingen hendelser ${targetMonth !== undefined ? months[targetMonth] : 'denne måneden'}.` };
+    } catch {
+      return { handled: true, response: 'Kunne ikke hente månedsvisning.' };
+    }
+  }
+
   private async exportCalendar(channelId: string): Promise<SkillResponse> {
     const events = await this.calendar.getEvents(channelId, 'all');
     const ics = this.calendar.generateICS(events);
@@ -159,7 +220,7 @@ export class CalendarSkillV2 implements Skill {
 
     // Check ownership if not user's event
     if (eventToDelete.creatorId !== userId && matching.length > 1) {
-      const options = matching.map((e, i) => `${i + 1}. ${e.title} (${e.creatorId === userId ? 'yours' : 'by ' + e.creatorId})`).join('\n');
+      const options = matching.map((e, i) => `${i + 1}. ${e.title} (${e.creatorId === userId ? 'yours' : `by ${e.creatorId}`})`).join('\n');
       return {
         handled: true,
         response: `Found multiple events:\n${options}\n\nPlease specify which one to delete.`

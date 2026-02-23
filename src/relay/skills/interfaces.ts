@@ -30,3 +30,10 @@ export interface SkillRegistry {
   getAllSkills(): Skill[];
   findHandler(message: string, ctx: HandlerContext): Skill | undefined;
 }
+
+export interface MemoryItem {
+  id: string;
+  userId: string;
+  fact: string;
+  createdAt: number;
+}

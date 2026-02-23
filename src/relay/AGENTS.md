@@ -10,17 +10,17 @@ Bidirectional relay between Discord DMs/Group DMs and Ollama LLM. Uses selfbot t
 | discord.ts | Discord login (selfbot) |
 | ollama.ts | Direct Ollama API client |
 | openclaw-client.ts | OpenClaw Gateway client with calendar tools |
-| skills/ | NanoClaw-inspired skill system (interfaces, registry, 4 skills) |
+| skills/ | Skill system (interfaces, registry, 5 skills) |
 
 ## SKILLS SYSTEM
 NanoClaw-inspired modular skill architecture:
 
 | Skill | Purpose |
 |-------|---------|
-| calendar-skill | Calendar events and scheduling |
-| image-skill | ComfyUI image generation |
-| memory-skill | Persistent user memory |
-| extraction-skill | Date/event extraction |
+| calendar-skill-v2 | Calendar events (CRUD, ICS export, week/month views) |
+| memory-skill | User memory with clarification flow |
+| clarification-skill | Pending response handling (avtale/minne) |
+| day-details-skill | Day-specific event details |
 
 ### Skill Interface
 ```typescript

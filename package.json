@@ -21,7 +21,8 @@
     "discord.js-selfbot-v13": "^3.7.1",
     "dotenv": "^16.4.1",
     "eris": "^0.17.2",
-    "googleapis": "^130.0.0",
+    "node-cron": "^3.0.3",
+    "rrule": "^2.7.0",
     "openai": "^4.28.0",
     "sql.js": "^1.10.0",
     "uuid": "^9.0.1",
@@ -29,6 +30,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.11.16",
+    "@types/node-cron": "^3.0.11",
     "@types/sql.js": "^1.4.9",
     "@types/uuid": "^9.0.8",
     "tsx": "^4.7.0",

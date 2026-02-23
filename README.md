@@ -9,6 +9,9 @@ AI Discord bot with calendar management, image generation via ComfyUI, and Ollam
 - **AI Chat** - Conversational responses via Ollama
 - **Event Extraction** - Automatically extracts dates/events from messages
 - **Task Reminders** - Scheduled notifications for calendar events
+- **Self-Healing** - Automatic retry with exponential backoff for failed operations
+- **Health Monitoring** - Built-in health check endpoint for external services
+- **Rate Limiting** - Per-user rate limiting (15 requests/minute)
 
 ## Prerequisites
 
@@ -52,6 +55,20 @@ npm run dev
 | List | "mine arrangementer" | "mine arrangementer" |
 | Delete | "slett arrangement" | "slett møte" |
 
+## Health Endpoint
+
+The relay bot includes a health check endpoint on port 3001:
+
+```bash
+# Check health status
+curl localhost:3001/health
+
+# Check readiness
+curl localhost:3001/health/ready
+```
+
+Response includes status of Ollama and ComfyUI services.
+
 ## Environment Variables
 
 | Variable | Description | Default |
@@ -69,12 +86,16 @@ npm run dev
 src/
 ├── index.ts           # Main bot entry (Eris)
 ├── relay/             # Selfbot relay (discord.js-selfbot-v13)
-│   ├── skills/        # Skill system (image, calendar, memory)
+│   ├── skills/       # Skill system (image, calendar, memory)
 │   ├── handlers/      # Message handlers
-│   └── ollama.ts     # Ollama client
-├── services/          # Domain services (calendar, memory, etc.)
-├── db/                # SQLite via sql.js
-└── commands/          # Slash commands
+│   ├── health.ts     # Health endpoint
+│   └── ollama.ts    # Ollama client
+├── services/          # Domain services
+│   ├── self-healer.ts    # Self-healing wrapper
+│   ├── health-monitor.ts # Service health checks
+│   └── error-classifier.ts # Error categorization
+├── db/               # SQLite via sql.js
+└── commands/         # Slash commands
 ```
 
 ## Technology
@@ -84,6 +105,7 @@ src/
 - **LLM**: Ollama (local)
 - **Image**: ComfyUI
 - **Language**: TypeScript (ESM)
+- **Testing**: Vitest
 
 ## License
 

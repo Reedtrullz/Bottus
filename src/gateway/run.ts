@@ -4,9 +4,8 @@ import { SkillAdapter } from './adapters.js';
 
 // Import existing skills
 import { MemorySkill } from '../relay/skills/memory-skill.js';
-import { CalendarSkill } from '../relay/skills/calendar-skill.js';
-import { ImageSkill } from '../relay/skills/image-skill.js';
-import { ExtractionSkill } from '../relay/skills/extraction-skill.js';
+import { CalendarSkillV2 } from '../relay/skills/calendar-skill-v2.js';
+import { CalendarServiceV2 } from '../services/calendar-v2.js';
 
 // Import handlers
 import { HelpHandler } from '../relay/handlers/help.js';
@@ -25,9 +24,7 @@ async function main() {
   const skills = [
     new HelpHandler(),
     new MemorySkill(),
-    new CalendarSkill(),
-    new ImageSkill(),
-    new ExtractionSkill()
+    new CalendarSkillV2(new CalendarServiceV2('./data/calendar-v2.db'))
   ];
   
   for (const skill of skills) {

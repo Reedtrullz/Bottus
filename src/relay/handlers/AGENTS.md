@@ -10,8 +10,8 @@ Modular message handler architecture for relay message processing. Implements a 
 | interfaces.ts | `MessageHandler`, `HandlerContext`, `HandlerResult` interfaces |
 | registry.ts | `HandlerRegistry` class with `register()` and `dispatch()` |
 | index.ts | Exports and handler registration |
-| help.ts | Contextual help responses (1192 lines) |
-| image.ts | ComfyUI image generation |
+| help.ts | Contextual help responses |
+| image.ts | ComfyUI image generation (remaining handler) |
 | calendar.ts | Calendar event handling |
 | memory.ts | Memory store/recall |
 | feedback.ts | Feedback handling |
@@ -93,3 +93,5 @@ export class ImageHandler implements MessageHandler {
 - Handlers are composed in `relay/index.ts` at startup
 - Uses `extractImagePrompt()` from `../utils/detectors.js`
 - Bilingual support (Norwegian/English) in help handler
+
+**NOTE:** Most handlers migrated to skills. Remaining: ImageHandler, HelpHandler, FeedbackHandler, TechStackHandler, FeaturesHandler

@@ -5,10 +5,14 @@ import { ExtractionService, ExtractedItem } from '../services/extraction.js';
 import { rsvpDb } from '../db/index.js';
 import { OllamaClient } from './ollama.js';
 import { CircuitBreaker } from '../utils/error-recovery.js';
+import { logger } from '../utils/logger.js';
+import { selfHealer } from '../services/self-healer.js';
+import { healthMonitor } from '../services/health-monitor.js';
 import { ComfyUIClient } from '../services/comfyui.js';
 import { t } from '../utils/i18n.js';
 import { isQueryMessage, isCalendarQuery, isTechStackQuery, isFeaturesQuery, isSelfAnalysisQuery, isMemoryStore, isMemoryQuery, extractImagePrompt } from './utils/detectors.js';
-import { FeaturesHandler, TechStackHandler, HelpHandler, HandlerContext, ImageHandler, CalendarHandler, DayDetailsHandler, MemoryHandler, ClarificationHandler } from './handlers/index.js';
+import { discordRateLimiter } from './utils/rate-limit.js';
+import { FeaturesHandler, TechStackHandler, HelpHandler, HandlerContext, ImageHandler } from './handlers/index.js';
 
 let comfyui: any = null;
 const ollamaBreaker = new CircuitBreaker();
@@ -17,11 +21,12 @@ import { PlanRouter } from './plan-router.js';
 import { FeedbackHandler } from './handlers/feedback.js';
 import { selfImprovement } from '../services/self-improvement.js';
 import { skillRegistry, HandlerContext as SkillHandlerContext } from './skills/registry.js';
-import { ImageSkill } from './skills/image-skill.js';
 import { CalendarSkillV2 } from './skills/calendar-skill-v2.js';
 import { MemorySkill } from './skills/memory-skill.js';
-import { ExtractionSkill } from './skills/extraction-skill.js';
+import { ClarificationSkill } from './skills/clarification-skill.js';
+import { DayDetailsSkill } from './skills/day-details-skill.js';
 import { CalendarServiceV2 } from '../services/calendar-v2.js';
+import { startHealthEndpoint } from './health.js';
 
 // Norwegian date/time context for OpenClaw prompts
 function getDateTimeContext(now?: Date): string {
@@ -285,6 +290,12 @@ const OPENCLAW_MODEL = process.env.OPENCLAW_MODEL || 'openclaw';
 
 
   async function main() {
+  const VERSION = '1.0.0';
+  console.log('╔═══════════════════════════════════════════════════════╗');
+  console.log('║           Ine Ollama Relay Bot                      ║');
+  console.log(`║           Version: ${VERSION.padEnd(39)}║`);
+  console.log(`║           Port:    3001 (health)                      ║`);
+  console.log('╚═══════════════════════════════════════════════════════╝');
   console.log('[Relay] Starting Ine Ollama Relay...');
 
   if (!DISCORD_TOKEN) {
@@ -295,6 +306,9 @@ const OPENCLAW_MODEL = process.env.OPENCLAW_MODEL || 'openclaw';
   console.log('[Relay] Initializing database...');
   await initializeDatabase();
   console.log('[Relay] Database initialized');
+  
+  // Start health endpoint
+  startHealthEndpoint();
 
   const ollama = new OllamaClient(OLLAMA_URL, OLLAMA_MODEL, RELAY_TIMEOUT_MS);
   const COMFYUI_URL = process.env.COMFYUI_URL || 'http://localhost:8188';
@@ -410,17 +424,33 @@ const OPENCLAW_MODEL = process.env.OPENCLAW_MODEL || 'openclaw';
 
   // Register modular handlers
   const imageHandler = new ImageHandler(comfyui);
-  const calendarHandler = new CalendarHandler(weekOffsets);
-  const dayDetailsHandler = new DayDetailsHandler();
-  const memoryHandler = new MemoryHandler(memory, pendingClarifications);
-  const clarificationHandler = new ClarificationHandler(memory, pendingClarifications);
 
   // Register skills with the skillRegistry at startup
   const calendarV2 = new CalendarServiceV2('./data/calendar-v2.db');
-  skillRegistry.register(new ImageSkill());
   skillRegistry.register(new CalendarSkillV2(calendarV2));
   skillRegistry.register(new MemorySkill());
-  skillRegistry.register(new ExtractionSkill());
+  skillRegistry.register(new ClarificationSkill());
+  skillRegistry.register(new DayDetailsSkill());
+
+  // Check if message is relevant for memory context injection
+  const needsMemoryContext = (msg: string): boolean => {
+    const lower = msg.toLowerCase();
+    const skipPatterns = [
+      'lag et bilde', 'generate image', 'lag bilde',
+      'calendar', 'kalender', 'arrangement', 'møte',
+      'help', 'hjelp', 'commands', 'kommandoer',
+      'vis dag', 'detaljer om',
+      'husk at', 'husk jeg', 'husk imorgen', 'husk på'
+    ];
+    if (skipPatterns.some(p => lower.includes(p))) return false;
+    if (msg.length < 5) return false;
+    const personalPatterns = [
+      'hvem er jeg', 'about me', 'who am i',
+      'hva kan du', 'what can you', 'fortell om',
+      '?', 'hva synes', 'hva mener', 'what do you'
+    ];
+    return personalPatterns.some(p => lower.includes(p));
+  };
 
   // Flow handler: processes extraction results and continues the relay flow
   const handleExtractionFlow = async (
@@ -428,22 +458,23 @@ const OPENCLAW_MODEL = process.env.OPENCLAW_MODEL || 'openclaw';
     userMessage: string,
     channelId: string
   ) => {
-  // Pre-fetch memories to inject into Ollama prompts later
+  // Pre-fetch memories only when relevant
   const userIdForMemory = (discord as any).getUserId?.() ?? '';
   let memoryContext = '';
-  try {
-    const mems: any[] = await memory.recall(userIdForMemory);
-    if (Array.isArray(mems) && mems.length > 0) {
-      const facts = mems
-        .map((m: any) => m?.fact)
-        .filter((f: any) => typeof f === 'string' && f.trim().length > 0);
-      if (facts.length > 0) {
-        // Format as a single-line block: "User facts: - fact1 - fact2"
-        memoryContext = `User facts: ${facts.map((f: string) => `- ${f}`).join(' ')}`;
+  if (needsMemoryContext(userMessage)) {
+    try {
+      const mems: any[] = await memory.recall(userIdForMemory);
+      if (Array.isArray(mems) && mems.length > 0) {
+        const facts = mems
+          .map((m: any) => m?.fact)
+          .filter((f: any) => typeof f === 'string' && f.trim().length > 0);
+        if (facts.length > 0) {
+          memoryContext = `User facts: ${facts.map((f: string) => `- ${f}`).join(' ')}`;
+        }
       }
+    } catch (err) {
+      console.error('[Relay] Memory recall failed:', (err as Error)?.message ?? err);
     }
-  } catch (err) {
-    console.error('[Relay] Memory recall failed:', (err as Error)?.message ?? err);
   }
   // If the user asked a query about events/tasks, answer directly instead of extraction flow
   if (isQueryMessage(userMessage)) {
@@ -481,6 +512,14 @@ const OPENCLAW_MODEL = process.env.OPENCLAW_MODEL || 'openclaw';
 
   // Inject memory context if available
   const promptForOllama = memoryContext ? `${memoryContext}\n${enhancedMessage}` : enhancedMessage;
+
+  // Health check before Ollama call
+  const ollamaHealth = await healthMonitor.checkOllama();
+  if (ollamaHealth.status === 'unhealthy') {
+    logger.warn(`Ollama unhealthy: ${ollamaHealth.error}`, { context: 'Relay' });
+    await discord.sendMessage(channelId, 'AI-tjenesten er for øyeblikket utilgjengelig. Prøv igjen senere.');
+    return;
+  }
 
   const startTime = Date.now();
   let response = '';
@@ -557,9 +596,25 @@ const OPENCLAW_MODEL = process.env.OPENCLAW_MODEL || 'openclaw';
         const rawContent = msg.content || '';
         const userMessage = rawContent.replace(/<@!?\d+>/g, '').replace(/@inebotten/gi, '').trim();
         const userId = (discord as any).getUserId();
+        
+        // Rate limiting check
+        if (!discordRateLimiter.isAllowed(userId)) {
+          const remaining = discordRateLimiter.getRemaining(userId);
+          await discord.sendMessage(channelId, `Vennligst vent litt... Du har ${remaining} forsøk igjen i dette minuttet.`);
+          return;
+        }
+        
         // Image generation trigger (before extraction flow)
         const _imagePrompt = extractImagePrompt(userMessage);
         if (_imagePrompt && comfyui) {
+          // Health check before ComfyUI call
+          const comfyuiHealth = await healthMonitor.checkComfyUI();
+          if (comfyuiHealth.status === 'unhealthy') {
+            logger.warn(`ComfyUI unhealthy: ${comfyuiHealth.error}`, { context: 'Relay' });
+            await discord.sendMessage(channelId, 'Bildegenerering er for øyeblikket utilgjengelig. Prøv igjen senere.');
+            return;
+          }
+          
           try {
             const enhancedPrompt = await comfyui.enhancePrompt(_imagePrompt);
             const result = await comfyui.generateImage(enhancedPrompt, userId);
@@ -619,31 +674,43 @@ if (helpHandler.canHandle(userMessage, handlerCtx)) {
 const skillCtx: SkillHandlerContext = { message: userMessage, userId, channelId, discord, extraction, memory };
 const skill = skillRegistry.findHandler(userMessage, skillCtx);
 if (skill) {
-  console.log(`[Relay] Skill matched: ${skill.name}`);
-  const skillResult = await skill.handle(userMessage, skillCtx);
-  if (skillResult.handled) return;
+  logger.info(`Skill matched: ${skill.name}`, { context: 'Relay' });
+  
+  // Self-healing wrapper around skill execution
+  const result = await selfHealer.executeWithHealing(
+    () => skill.handle(userMessage, skillCtx),
+    {
+      context: skill.name,
+      onRetry: (error, attempt) => {
+        logger.warn(`Skill ${skill.name} failed (attempt ${attempt}): ${error.message}`, { context: 'Relay' });
+      },
+      onHeal: (error, category) => {
+        logger.error(`Skill ${skill.name} healed after retry: ${error.message}`, { context: 'Relay', category });
+      },
+      fallback: async () => {
+        // User-friendly fallback messages per skill type
+        const fallbackMessages: Record<string, string> = {
+          'calendar-v2': 'Kunne ikke hente kalenderen. Prøv igjen senere.',
+          'memory': 'Kunne ikke lagre minnet. Prøv igjen.',
+          'clarification': 'Noe gikk galt. Prøv igjen.',
+          'day-details': 'Kunne ikke hente detaljer. Prøv igjen.',
+        };
+        const msg = fallbackMessages[skill.name] || 'Noe gikk galt. Prøv igjen.';
+        await discord.sendMessage(channelId, msg);
+        return { handled: true, response: msg };
+      },
+    }
+  );
+  
+  if (result.success && result.data?.handled) {
+    return;
+  }
 }
 
-// Dispatch to modular handlers (dayDetails, clarification)
+// Dispatch to modular handlers (image - remaining handler)
 if (imageHandler.canHandle(userMessage, handlerCtx)) {
   const imgResult = await imageHandler.handle(userMessage, handlerCtx);
   if (imgResult.handled) return;
-}
-if (calendarHandler.canHandle(userMessage, handlerCtx)) {
-  const calResult = await calendarHandler.handle(userMessage, handlerCtx);
-  if (calResult.handled) return;
-}
-if (dayDetailsHandler.canHandle(userMessage, handlerCtx)) {
-  const dayResult = await dayDetailsHandler.handle(userMessage, handlerCtx);
-  if (dayResult.handled) return;
-}
-if (memoryHandler.canHandle(userMessage, handlerCtx)) {
-  const memResult = await memoryHandler.handle(userMessage, handlerCtx);
-  if (memResult.handled) return;
-}
-if (clarificationHandler.canHandle(userMessage, handlerCtx)) {
-  const clarResult = await clarificationHandler.handle(userMessage, handlerCtx);
-  if (clarResult.handled) return;
 }
 
   // Phase 3: per-user tone set command (NB-NO friendly) - allow minor configuration via chat
@@ -1021,7 +1088,13 @@ if (clarificationHandler.canHandle(userMessage, handlerCtx)) {
   }, 60 * 1000);
 
   process.on('SIGINT', () => {
-    console.log('[Relay] Shutting down...');
+    console.log('[Relay] Received SIGINT - Shutting down gracefully...');
+    discord.disconnect();
+    process.exit(0);
+  });
+  
+  process.on('SIGTERM', () => {
+    console.log('[Relay] Received SIGTERM - Shutting down gracefully...');
     discord.disconnect();
     process.exit(0);
   });
