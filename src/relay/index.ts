@@ -561,13 +561,16 @@ const OPENCLAW_MODEL = process.env.OPENCLAW_MODEL || 'openclaw';
         const _imagePrompt = extractImagePrompt(userMessage);
         if (_imagePrompt && comfyui) {
           try {
-const result = await comfyui.generateImage(_imagePrompt, userId);
-        if (result.success && result.imageUrl) {
+            const enhancedPrompt = await comfyui.enhancePrompt(_imagePrompt);
+            const result = await comfyui.generateImage(enhancedPrompt, userId);
+if (result.success && result.imageUrl) {
   // Send only the URL as the message content (no file payload)
   await discord.sendMessage(channelId, `${result.imageUrl}`);
+  return;
 } else {
   console.warn('[Relay] Image generation failed:', result.error);
   await discord.sendMessage(channelId, 'Beklager, bildegenerering feilet: ' + (result.error || 'ukjent feil'));
+  return;
 }
           } catch (err) {
             console.error('[Relay] ComfyUI image generation failed:', err);

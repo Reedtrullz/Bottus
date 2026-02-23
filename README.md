@@ -4,7 +4,7 @@ AI Discord bot with calendar management, image generation via ComfyUI, and Ollam
 
 ## Features
 
-- **Image Generation** - Generate images using ComfyUI ( Norwegian: "lag et bilde av...")
+- **Image Generation** - Generate images using ComfyUI with LLM prompt enhancement (Norwegian: "lag et bilde av...")
 - **Calendar Management** - Create, list, and delete events (Norwegian: "lag arrangement...", "mine arrangementer")
 - **AI Chat** - Conversational responses via Ollama
 - **Event Extraction** - Automatically extracts dates/events from messages
@@ -58,6 +58,7 @@ npm run dev
 |----------|-------------|---------|
 | `DISCORD_TOKEN` | Discord bot token | - |
 | `OLLAMA_URL` | Ollama API endpoint | http://localhost:11434 |
+| `OLLAMA_MODEL` | Ollama model for prompt enhancement | llama3.2 |
 | `COMFYUI_URL` | ComfyUI API endpoint | http://localhost:8188 |
 | `COMFYUI_MODEL` | Primary image model | v1-5-pruned-emaonly.safetensors |
 | `COMFYUI_FALLBACK_MODEL` | Fallback image model | sd15_default.yaml |

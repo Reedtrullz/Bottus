@@ -10,6 +10,7 @@ Core business logic implemented as 12 services.
 | calendar.ts | Google Calendar integration (MVP: local only) |
 | calendar-display.ts | Embed rendering for week/month views |
 | calendar-renderer.ts | SVG image calendar generation |
+| **comfyui.ts** | **ComfyUI image generation with prompt enhancement** |
 | reminders.ts | Task reminders via Discord |
 | retention.ts | 1-hour TTL data cleanup |
 | extraction.ts | Date/event extraction from messages (chrono-node) |
@@ -28,6 +29,7 @@ Core business logic implemented as 12 services.
 | Calendar ops | CalendarService |
 | Calendar display | CalendarDisplayService |
 | Image calendar | CalendarRenderer |
+| **Image generation** | **ComfyUIClient** |
 | Task reminders | ReminderService |
 | Governance | GovernanceService |
 | AI responses | AIService |
@@ -88,3 +90,4 @@ DB performance issues (sync writes, no indexes) directly impact service latency.
 | GovernanceService | proposalDb | None |
 | AIService | None | Ollama (relay) |
 | ToneLearningService | toneProfileDb | None |
+| **ComfyUIClient** | **None** | **ComfyUI + Ollama (prompt enhancement)** |

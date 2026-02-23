@@ -1,4 +1,5 @@
 import fetch from 'node-fetch';
+import { OllamaClient } from '../relay/ollama.js';
 
 const COMFYUI_URL = process.env.COMFYUI_URL || 'http://localhost:8188';
 const COMFYUI_MODEL = process.env.COMFYUI_MODEL || 'v1-5-pruned-emaonly.safetensors';
@@ -359,6 +360,34 @@ export class ComfyUIClient {
       return response.ok;
     } catch {
       return false;
+    }
+  }
+
+  async enhancePrompt(prompt: string): Promise<string> {
+    const ollamaUrl = process.env.OLLAMA_URL || 'http://localhost:11434';
+    const ollamaModel = process.env.OLLAMA_MODEL || 'llama3.2';
+    const timeoutMs = 10000;
+
+    const ollama = new OllamaClient(ollamaUrl, ollamaModel, timeoutMs);
+
+    const systemPrompt = `Convert this Norwegian text to a concise English prompt suitable for Stable Diffusion. Add quality keywords like 'detailed, high quality, 4k, beautiful'. Return ONLY the enhanced prompt, nothing else.`;
+
+    try {
+      const response = await ollama.chat([
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: prompt }
+      ]);
+
+      const enhanced = response.trim();
+
+      if (enhanced && enhanced.length > 0) {
+        return enhanced;
+      }
+
+      return prompt;
+    } catch (error) {
+      console.log(`[ComfyUI] enhancePrompt error: ${error instanceof Error ? error.message : error}`);
+      return prompt;
     }
   }
 }
