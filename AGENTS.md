@@ -227,6 +227,28 @@ this.db!.run(`INSERT INTO events (id) VALUES (?)`, [event.id]);
 
 ---
 
+## BOOT MODES
+
+| Mode | Command | Entry Point |
+|------|---------|-------------|
+| Dev | `npm run dev` | src/index.ts |
+| Main bot | `npm run start` | dist/index.js |
+| Relay bot | `npm run start:relay` | src/relay/index.ts |
+| Gateway | `npm run start:gateway` | src/gateway/run.ts |
+
+---
+
+## TESTING
+
+| Type | Location | Run |
+|------|----------|------|
+| Unit | tests/relay/, tests/gateway/ | `npm test` |
+| Integration | test/integration/ | `npm test` |
+| E2E | (env-gated) | `TEST_E2E=true npm test` |
+| ComfyUI | (env-gated) | `TEST_COMFYUI=true npm test` |
+
+---
+
 ## NOTES
 
 - **Timezone:** Europe/Oslo (hardcoded)
