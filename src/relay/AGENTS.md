@@ -9,7 +9,6 @@ Bidirectional relay between Discord DMs/Group DMs and Ollama LLM. Uses selfbot t
 | index.ts | Main relay entry + digital almanac flow |
 | discord.ts | Discord login (selfbot) |
 | ollama.ts | Direct Ollama API client |
-| openclaw-client.ts | OpenClaw Gateway client with calendar tools |
 | skills/ | Skill system (interfaces, registry, 5 skills) |
 
 ## SKILLS SYSTEM
@@ -92,7 +91,6 @@ src/relay/utils/
 src/relay/handlers/
 ├── index.ts         # Handler registry + interface
 ├── image.ts         # ComfyUI image generation
-├── openclaw.ts      # OpenClaw tool execution
 ├── tone.ts          # Tone configuration
 ├── feedback.ts      # Feedback handling
 ├── clarification.ts # Pending clarification
@@ -122,7 +120,6 @@ Refactor `discord.onMention()` to use handler registry:
 // Proposed pattern:
 const handlers: MessageHandler[] = [
   new ImageGenerationHandler(comfyui),
-  new OpenClawHandler(openclaw, executor),
   // ... etc
 ];
 

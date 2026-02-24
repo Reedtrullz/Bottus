@@ -17,30 +17,6 @@ services:
               capabilities: [gpu]
     restart: unless-stopped
 
-  # OpenClaw Gateway - AI assistant with tool support
-  openclaw:
-    image: coollabsio/openclaw:latest
-    container_name: ine-openclaw
-    ports:
-      - "18789:18789"
-    volumes:
-      - openclaw-data:/data
-    environment:
-      # AI Provider - use local Ollama
-      CLAW_PROVIDER: "ollama"
-      OLLAMA_BASE_URL: "http://ollama:11434"
-      OLLAMA_MODEL: "qwen2.5:14b"
-      # Gateway configuration
-      OPENCLAW_GATEWAY_TOKEN: "${OPENCLAW_TOKEN:-change-me-in-env}"
-      # Auth (disable for local development)
-      AUTH_USERNAME: "admin"
-      AUTH_PASSWORD: "${OPENCLAW_PASSWORD:-}"
-      # Disable browser automation
-      BROWSER_EVALUATE_ENABLED: "false"
-    depends_on:
-      - ollama
-    restart: unless-stopped
-
   ine-relay:
     build:
       context: .
@@ -56,13 +32,8 @@ services:
       HISTORY_MAX_MESSAGES: "5"
       # ComfyUI integration
       COMFYUI_URL: "http://127.0.0.1:8188"
-      # OpenClaw integration
-      OPENCLAW_URL: "http://127.0.0.1:18789"
-      OPENCLAW_TOKEN: "${OPENCLAW_TOKEN:-change-me-in-env}"
-      USE_OPENCLAW: "false"
     depends_on:
       - ollama
-      - openclaw
     restart: unless-stopped
 
   # ComfyUI - Local image generation (CPU mode)
@@ -83,6 +54,5 @@ services:
 
 volumes:
   ollama-data:
-  openclaw-data:
   comfyui-data:
   comfyui-models:

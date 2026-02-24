@@ -25,7 +25,6 @@ src/
 │   ├── index.ts     # Main relay + digital almanac
 │   ├── discord.ts   # Discord login
 │   ├── ollama.ts   # Ollama API client
-│   ├── openclaw-client.ts  # OpenClaw integration
 │   ├── skills/     # NanoClaw-inspired skill system
 │   │   ├── interfaces.ts
 │   │   ├── registry.ts

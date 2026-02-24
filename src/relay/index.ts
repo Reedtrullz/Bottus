@@ -16,7 +16,6 @@ import { FeaturesHandler, TechStackHandler, HelpHandler, HandlerContext, ImageHa
 
 let comfyui: any = null;
 const ollamaBreaker = new CircuitBreaker();
-import { OpenClawClient, calendarTools } from './openclaw-client.js';
 import { PlanRouter } from './plan-router.js';
 import { FeedbackHandler } from './handlers/feedback.js';
 import { selfImprovement } from '../services/self-improvement.js';
@@ -28,98 +27,6 @@ import { DayDetailsSkill } from './skills/day-details-skill.js';
 import { CalendarServiceV2 } from '../services/calendar-v2.js';
 import { startHealthEndpoint } from './health.js';
 
-// Norwegian date/time context for OpenClaw prompts
-function getDateTimeContext(now?: Date): string {
-  const date = now ?? new Date();
-  const days = ["søndag","mandag","tirsdag","onsdag","torsdag","fredag","lørdag"];
-  const months = ["januar","februar","mars","april","mai","juni","juli","august","september","oktober","november","desember"];
-  const weekday = days[date.getDay()];
-  const day = date.getDate();
-  const month = months[date.getMonth()];
-  const hh = date.getHours().toString().padStart(2, "0");
-  const mm = date.getMinutes().toString().padStart(2, "0");
-  return `Idag er det ${weekday}, ${day}. ${month}. Klokken er ${hh}:${mm}.`;
-}
-
-// OpenClaw tool executor factory for calendar operations
-export function createOpenClawToolExecutor(discord: any, userId: string, channelId: string) {
-  void calendarTools;
-  void discord;
-  const executor = async (toolName: string, argsStr: string): Promise<string> => {
-    const parseArgs = (input: string) => {
-      if (!input) return {} as any;
-      try {
-        return JSON.parse(input);
-      } catch {
-        const out: any = {};
-        input.split(';').forEach((pair) => {
-          const [k, v] = pair.split('=');
-          if (k) out[k.trim()] = v?.trim();
-        });
-        return out;
-      }
-    };
-    const args = parseArgs(argsStr || '{}');
-    try {
-      switch (toolName) {
-        case 'create_event': {
-          const { title, startTime, endTime, description } = args || {};
-          await eventDb.create({ userId, channelId, title, startTime, endTime, description });
-          return t('calendar.created', undefined, { title: title ?? '' });
-        }
-        case 'list_events': {
-          const limit = Number(args?.limit) || 20;
-          const events: any[] = await eventDb.findUpcoming(limit);
-          if (!events?.length) return t('calendar.noEvents');
-          return events.map((e) => `- [${e.id}] ${e.title} at ${e.startTime}`).join('\n');
-        }
-        case 'get_event': {
-          const id = args?.id;
-          const list: any[] = await eventDb.findUpcoming(1000);
-          const found = list.find((e) => e.id === id);
-          return found ? JSON.stringify(found) : t('errors.generic');
-        }
-        case 'update_event': {
-          const id = args?.id;
-          const updates = args?.updates ?? {};
-          const list: any[] = await eventDb.findUpcoming(1000);
-          const existing = list.find((e) => e.id === id);
-          if (!existing) return `Event not found: ${id}`;
-          const merged = { ...existing, ...updates };
-          await eventDb.create({ userId, channelId, title: merged.title, startTime: merged.startTime, endTime: merged.endTime, description: merged.description });
-          await eventDb.delete(id);
-          return t('calendar.created', undefined, { title: merged.title ?? '' });
-        }
-        case 'delete_event': {
-          const delId = args?.id;
-          await eventDb.delete(delId);
-          return `${t('calendar.deleted')} (id ${delId})`;
-        }
-        case 'set_reminder': {
-          const { title, dueTime, relatedEventId } = args || {};
-          const reminderTitle = title ?? `Reminder${relatedEventId ? ` for ${relatedEventId}` : ''}`;
-          await taskDb.create({ userId, channelId, title: reminderTitle, dueTime });
-          return t('calendar.created', undefined, { title: reminderTitle });
-        }
-        case 'list_reminders': {
-          const reminders: any[] = await taskDb.findPending();
-          if (!reminders?.length) return t('calendar.noEvents');
-          return reminders.map((r) => `- ${r.title} (due ${r.dueTime}, id ${r.id})`).join('\n');
-        }
-        case 'cancel_reminder': {
-          const remId = args?.id;
-          await taskDb.complete(remId);
-          return `${t('calendar.deleted')} (id ${remId})`;
-        }
-        default:
-          return t('errors.unknownTool', undefined, { toolName });
-      }
-    } catch (err: any) {
-      return `${t('errors.generic')}`;
-    }
-  };
-  return executor;
-}
 import { CalendarDisplayService } from '../services/calendar-display.js';
 import { ToneService } from '../services/tone.js';
 import { MemoryService } from '../services/memory.js';
@@ -282,12 +189,6 @@ const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'mistral:7b-instruct';
 const RELAY_TIMEOUT_MS = parseInt(process.env.RELAY_TIMEOUT_MS || '60000', 10);
 const HISTORY_MAX_MESSAGES = parseInt(process.env.HISTORY_MAX_MESSAGES || '5', 10);
 
-// OpenClaw configuration (optional - set USE_OPENCLAW=true to enable)
-const USE_OPENCLAW = process.env.USE_OPENCLAW === 'true';
-const OPENCLAW_URL = process.env.OPENCLAW_URL || 'http://localhost:18789';
-const OPENCLAW_TOKEN = process.env.OPENCLAW_TOKEN || '';
-const OPENCLAW_MODEL = process.env.OPENCLAW_MODEL || 'openclaw';
-
 
   async function main() {
   const VERSION = '1.0.0';
@@ -313,17 +214,6 @@ const OPENCLAW_MODEL = process.env.OPENCLAW_MODEL || 'openclaw';
   const ollama = new OllamaClient(OLLAMA_URL, OLLAMA_MODEL, RELAY_TIMEOUT_MS);
   const COMFYUI_URL = process.env.COMFYUI_URL || 'http://localhost:8188';
   comfyui = new ComfyUIClient(COMFYUI_URL);
-  
-  // Initialize OpenClaw client if enabled (used when USE_OPENCLAW=true)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  let openclaw: OpenClawClient | undefined;
-  void openclaw;
-  if (USE_OPENCLAW && OPENCLAW_TOKEN) {
-    openclaw = new OpenClawClient(OPENCLAW_URL, OPENCLAW_TOKEN, OPENCLAW_MODEL, RELAY_TIMEOUT_MS);
-    console.log('[Relay] OpenClaw client enabled');
-  } else if (USE_OPENCLAW) {
-    console.warn('[Relay] USE_OPENCLAW=true but OPENCLAW_TOKEN not set');
-  }
   const discord = new DiscordRelay(DISCORD_TOKEN, HISTORY_MAX_MESSAGES);
 
   // Register message handlers
@@ -629,23 +519,6 @@ if (result.success && result.imageUrl) {
 }
           } catch (err) {
             console.error('[Relay] ComfyUI image generation failed:', err);
-          }
-        }
- 
-        if (USE_OPENCLAW && typeof openclaw !== 'undefined' && (openclaw as any)?.sendMessageWithTools) {
-          try {
-            // Prepend date/time context to userMessage for OpenClaw
-            const _dateContextOpenClaw = getDateTimeContext();
-            const _augmentedUserMessage = `${_dateContextOpenClaw} ${userMessage}`;
-            const executor = createOpenClawToolExecutor(discord, userId, channelId);
-            // @ts-ignore
-            const apiResponse = await (openclaw as any).sendMessageWithTools(_augmentedUserMessage, calendarTools, executor);
-            if (apiResponse) {
-              await discord.sendMessage(channelId, apiResponse);
-              return;
-            }
-          } catch {
-            // fall back to Ollama flow below
           }
         }
 
