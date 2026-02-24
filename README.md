@@ -1,215 +1,139 @@
-# Ine-Discord Bot (Bottus)
+# Bottus 🤖
 
-AI Discord bot with calendar management, image generation via ComfyUI, and Ollama LLM integration. Supports both the native relay bot and NanoBot Gateway integration.
+Your AI-powered Discord companion with local LLM, image generation, and shared calendar for group chats.
+
+## What is Bottus?
+
+Bottus runs in your **group DM** and uses a **local LLM** (Ollama) to have natural conversations. No API keys, no cloud dependencies, no monthly bills—just you, your friends, and AI that actually understands context.
+
+### Demo
+
+```
+📸 "lag et bilde av en cyberpunk by i regn"
+→ Generates image via ComfyUI
+
+📅 "lag arrangement Middag imorgen kl 18"
+→ Creates event, checks for conflicts
+
+👍 "rsvp Middag yes"
+→ Tracks who's coming
+
+🤝 "propose tid for gaming"
+→ Starts time poll, finds best time for everyone
+```
 
 ## Features
 
-- **Image Generation** - Generate images using ComfyUI with LLM prompt enhancement (Norwegian: "lag et bilde av...")
-- **Calendar Management** - Create, list, and delete events (Norwegian: "lag arrangement...", "mine arrangementer")
-- **AI Chat** - Conversational responses via Ollama
-- **Event Extraction** - Automatically extracts dates/events from messages
-- **Task Reminders** - Scheduled notifications for calendar events
-- **Self-Healing** - Automatic retry with exponential backoff for failed operations
-- **Health Monitoring** - Built-in health check endpoint for external services
-- **Rate Limiting** - Per-user rate limiting (15 requests/minute)
-- **NanoBot Integration** - Runs as NanoBot Gateway channel for unified agent loop
+### 💬 Smart Conversations
+- **Local LLM** via Ollama (no cloud, total privacy)
+- Understands Norwegian and English
+- Remembers context within chat
+- Adapts tone to your group's style
 
-## Two Running Modes
+### 🎨 Image Generation
+- **ComfyUI** integration for high-quality images
+- LLM-enhanced prompts (the bot improves your idea before generating)
+- Norwegian triggers: "lag et bilde av..."
 
-### Option 1: Relay Bot (Standalone)
-The original selfbot relay that handles Discord DMs/Group DMs directly.
+### 📅 Shared Calendar
+- **Group coordination**: Events are shared across the group DM
+- **RSVP tracking**: See who's attending
+- **Conflict detection**: Warns when scheduling overlaps
+- **Time proposals**: Poll the group for best times
+- **Consensus delete**: Remove stale events with 2/3 vote
+- Natural language: "lag arrangement møte på fredag kl 14"
 
-### Option 2: NanoBot Gateway
-Runs as a NanoBot channel, enabling the full NanoBot agent loop with skills, memory, and tools.
+### 🛡️ Self-Healing
+- Automatic retry with exponential backoff
+- Service health monitoring
+- Graceful degradation when services fail
 
-## Prerequisites
+### 🔌 Two Running Modes
 
-- Node.js >= 18.0.0
-- WSL2 (for GPU support with Ollama)
-- Ollama (installed in WSL2)
-- ComfyUI (optional, for image generation)
-- Python >= 3.11 (for NanoBot Gateway mode)
+| Mode | Description |
+|------|-------------|
+| **Relay Bot** | Standalone selfbot, direct Discord access |
+| **NanoBot Gateway** | Full agent loop with skills + tools |
 
-## Setup
+## Quick Start
 
 ```bash
-# Install dependencies
+# 1. Clone & install
+git clone https://github.com/Reedtrullz/Bottus.git
+cd Bottus
 npm install
 
-# Configure environment
+# 2. Copy config
 cp .env.example .env
-# Edit .env with your Discord user token, Ollama endpoint, etc.
+# Edit .env with your Discord token and Ollama URL
 
-# Build
-npm run build
-```
-
-### NanoBot Gateway Setup (Optional)
-
-To run via NanoBot Gateway:
-
-```bash
-# Install NanoBot
-pip install nanobot
-
-# Run setup script for Discord selfbot channel
-python3 scripts/setup-discord-selfbot.py
-
-# Configure NanoBot
-# Edit ~/.nanobot/config.json - see docs/discord-selfbot-setup.md
-```
-
-See [Discord Selfbot Setup Guide](docs/discord-selfbot-setup.md) for detailed instructions.
-
-## Running
-
-### Relay Bot (Standalone)
-
-```bash
-# Relay bot (discord.js-selfbot-v13)
+# 3. Run
 npm run start:relay
 ```
 
-### NanoBot Gateway
-
-```bash
-# Start NanoBot Gateway (port 18790)
-nanobot gateway -p 18790
-
-# Or via npm
-npm run start:gateway
-```
-
-### Development
-
-```bash
-npm run dev
-```
+Requires: Node.js 18+, Ollama running locally
 
 ## Commands
 
 | Feature | Trigger | Example |
 |---------|---------|---------|
-| Image | "lag et bilde av" | "lag et bilde av en katt" |
-| Calendar | "lag arrangement" | "lag arrangement møte imorgen kl 14" |
-| RSVP | "rsvp Dinner yes" | "deltar Møte" |
-| Event Details | "event Dinner" | "detaljer Møte" |
-| Time Poll | "propose tid" | "forslag tid" |
-| List | "mine arrangementer" | "hva skjer" |
-| Delete | "slett arrangement" | "slett møte" |
-|---------|---------|---------|
-| Image | "lag et bilde av" | "lag et bilde av en katt" |
-| Calendar | "lag arrangement" | "lag arrangement møte imorgen kl 14" |
-| List | "mine arrangementer" | "mine arrangementer" |
-| Delete | "slett arrangement" | "slett møte" |
+| Image | `lag et bilde av` | `lag et bilde av en katt i hatt` |
+| Create Event | `lag arrangement` | `lag arrangement middag imorgen kl 18` |
+| RSVP | `rsvp` | `rsvp middag yes` |
+| Event Details | `event` | `event middag` |
+| Time Poll | `propose tid` | `propose tid for gaming` |
+| List Events | `mine arrangementer` | `hva skjer` |
+| Delete | `slett` | `slett middag` |
+| Export | `eksport` | `eksport kalender` |
 
-## Health Endpoint
-
-The relay bot includes a health check endpoint on port 3001:
-
-```bash
-# Check health status
-curl localhost:3001/health
-
-# Check readiness
-curl localhost:3001/health/ready
-```
-
-Response includes status of Ollama and ComfyUI services.
-
-## Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `DISCORD_TOKEN` | Discord user token (selfbot) | - |
-| `DISCORD_USER_TOKEN` | Alias for DISCORD_TOKEN | - |
-| `OLLAMA_URL` | Ollama API endpoint | http://localhost:11434 |
-| `OLLAMA_MODEL` | Ollama model for prompt enhancement | llama3.1:8b |
-| `COMFYUI_URL` | ComfyUI API endpoint | http://localhost:8188 |
-| `COMFYUI_MODEL` | Primary image model | v1-5-pruned-emaonly.safetensors |
-| `COMFYUI_FALLBACK_MODEL` | Fallback image model | sd15_default.yaml |
-## NanoBot Provider Configuration
-
-To configure the LLM provider for NanoBot Gateway, edit `~/.nanobot/config.json`:
-
-```json
-{
-  "agents": {
-    "defaults": {
-      "provider": "openai",
-      "model": "minimax-m2.5"
-    }
-  },
-  "providers": {
-    "openai": {
-      "apiKey": "YOUR_API_KEY",
-      "apiBase": "https://ollama.com/v1"
-    }
-  }
-}
-```
-
-See `docs/discord-selfbot-setup.md` for detailed configuration options.
-
-
-
-## Project Structure
+## Architecture
 
 ```
-src/
-├── index.ts           # Main bot entry (Eris)
-├── relay/             # Selfbot relay (discord.js-selfbot-v13)
-│   ├── skills/       # Skill system (image, calendar, memory)
-│   ├── handlers/      # Message handlers
-│   ├── health.ts     # Health endpoint
-│   └── ollama.ts    # Ollama client
-├── gateway/         # NanoGateway skill dispatcher (experimental)
-├── services/          # Domain services
-│   ├── self-healer.ts    # Self-healing wrapper
-│   ├── health-monitor.ts # Service health checks
-│   └── error-classifier.ts # Error categorization
-├── db/               # SQLite via sql.js
-└── commands/         # Slash commands
-
-scripts/
-├── discord-client.js       # Node.js Discord selfbot client
-├── discord-selfbot-channel.py  # Python NanoBot channel (installed to site-packages)
-└── setup-discord-selfbot.py    # Installation script
-
-docs/
-└── discord-selfbot-setup.md   # NanoBot Discord selfbot setup guide
+┌─────────────────────────────────────────────┐
+│            Discord Group DM                  │
+└─────────────┬───────────────────────────────┘
+              │
+┌─────────────▼───────────────────────────────┐
+│         Relay Bot (selfbot)                  │
+│  ┌─────────────┐  ┌─────────────────────┐  │
+│  │  Skills    │  │  Message Handlers   │  │
+│  │  - Calendar│  │  - Extraction       │  │
+│  │  - Image   │  │  - Confirmation     │  │
+│  │  - Memory  │  │  - Reminders       │  │
+│  └─────────────┘  └─────────────────────┘  │
+└─────────────┬───────────────────────────────┘
+              │
+    ┌─────────┼─────────┐
+    ▼         ▼         ▼
+┌───────┐ ┌───────┐ ┌────────┐
+│Ollama│ │ComfyUI│ │SQLite  │
+│  LLM │ │ Images│ │  DB    │
+└───────┘ └───────┘ └────────┘
 ```
 
-## Technology
+## Tech Stack
 
-- **Discord**: Eris + discord.js-selfbot-v13
-- **Database**: sql.js (SQLite in-memory with file persistence)
+- **Runtime**: Node.js (TypeScript)
+- **Discord**: discord.js-selfbot-v13 + Eris
 - **LLM**: Ollama (local)
 - **Image**: ComfyUI
-- **Language**: TypeScript (ESM)
+- **Database**: sql.js (SQLite)
 - **Testing**: Vitest
+
+## Why Local LLM?
+
+| Cloud API | Bottus |
+|-----------|--------|
+| Monthly API bills | One-time GPU cost |
+| Data leaves your machine | Everything stays local |
+| Rate limits | Your hardware, your rules |
+| Internet required | Works offline (mostly) |
+
+## Documentation
+
+- [Calendar Skill Guide](docs/calendar-skill.md)
+- [Discord Selfbot Setup](docs/discord-selfbot-setup.md)
 
 ## License
 
 MIT
-
-## WSL2 Setup (for Ollama with GPU)
-
-```bash
-# Download and extract Ollama
-curl -fsSL https://ollama.com/download/ollama-linux-amd64.tar.zst -o /tmp/ollama.tar.zst
-mkdir -p ~/ollama && tar xf /tmp/ollama.tar.zst -C ~/ollama
-
-# Add to PATH (add to ~/.bashrc for persistence)
-export PATH=~/ollama/bin:$PATH
-export LD_LIBRARY_PATH=/usr/lib/wsl/lib:$LD_LIBRARY_PATH
-
-# Start Ollama
-nohup ollama serve > ~/ollama/ollama.log 2>&1 &
-
-# Pull your model
-ollama pull bazobehram/qwen3-14b-claude-4.5-opus-high-reasoning
-
-# Or use the startup script
-bash scripts/start-relay.sh
-```
