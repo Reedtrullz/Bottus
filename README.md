@@ -120,6 +120,30 @@ Response includes status of Ollama and ComfyUI services.
 | `COMFYUI_URL` | ComfyUI API endpoint | http://localhost:8188 |
 | `COMFYUI_MODEL` | Primary image model | v1-5-pruned-emaonly.safetensors |
 | `COMFYUI_FALLBACK_MODEL` | Fallback image model | sd15_default.yaml |
+## NanoBot Provider Configuration
+
+To configure the LLM provider for NanoBot Gateway, edit `~/.nanobot/config.json`:
+
+```json
+{
+  "agents": {
+    "defaults": {
+      "provider": "openai",
+      "model": "minimax-m2.5"
+    }
+  },
+  "providers": {
+    "openai": {
+      "apiKey": "YOUR_API_KEY",
+      "apiBase": "https://ollama.com/v1"
+    }
+  }
+}
+```
+
+See `docs/discord-selfbot-setup.md` for detailed configuration options.
+
+
 
 ## Project Structure
 

@@ -52,6 +52,72 @@ This will:
 - Add `DiscordSelfbotConfig` to the config schema
 - Add channel initialization to `manager.py`
 
+## Ollama Cloud Provider Configuration
+
+To use Ollama Cloud (or any OpenAI-compatible API) as the LLM provider:
+
+### Get Your API Key
+
+1. Log in to [ollama.com](https://ollama.com)
+2. Go to Settings → Tokens
+3. Create a new API token
+
+### Configure Provider
+
+Edit `~/.nanobot/config.json`:
+
+```json
+{
+  "agents": {
+    "defaults": {
+      "provider": "openai",
+      "model": "minimax-m2.5",
+      "maxTokens": 8192,
+      "temperature": 0.1
+    }
+  },
+  "channels": {
+    "discord": {
+      "enabled": false
+    },
+    "discord_selfbot": {
+      "enabled": true,
+      "token": "YOUR_DISCORD_USER_TOKEN",
+      "allowFrom": [],
+      "clientPath": "/home/reed/Projects/Ine-Discord/scripts/discord-client.js"
+    }
+  },
+  "providers": {
+    "openai": {
+      "apiKey": "YOUR_OLLAMA_CLOUD_TOKEN",
+      "apiBase": "https://ollama.com/v1"
+    }
+  }
+}
+```
+
+### Available Models
+
+Run this to see available models:
+
+```bash
+curl -s https://api.ollama.com/v1/models \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+Popular models include:
+- `minimax-m2.5` - Fast, good reasoning
+- `kimi-k2.5` - Strong performance
+- `qwen3.5:397b` - Large model
+- `glm-5` - Google model
+
+### Notes
+
+- Use `openai` provider with `apiBase: "https://ollama.com/v1"`
+- The `vllm` provider may not work with Ollama Cloud due to auth issues
+- Disable the regular `discord` channel to avoid message loops
+
+
 ### Step 2: Configure NanoBot
 
 Edit your `~/.nanobot/config.json`:
