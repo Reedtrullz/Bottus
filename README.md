@@ -92,6 +92,14 @@ npm run dev
 |---------|---------|---------|
 | Image | "lag et bilde av" | "lag et bilde av en katt" |
 | Calendar | "lag arrangement" | "lag arrangement møte imorgen kl 14" |
+| RSVP | "rsvp Dinner yes" | "deltar Møte" |
+| Event Details | "event Dinner" | "detaljer Møte" |
+| Time Poll | "propose tid" | "forslag tid" |
+| List | "mine arrangementer" | "hva skjer" |
+| Delete | "slett arrangement" | "slett møte" |
+|---------|---------|---------|
+| Image | "lag et bilde av" | "lag et bilde av en katt" |
+| Calendar | "lag arrangement" | "lag arrangement møte imorgen kl 14" |
 | List | "mine arrangementer" | "mine arrangementer" |
 | Delete | "slett arrangement" | "slett møte" |
 

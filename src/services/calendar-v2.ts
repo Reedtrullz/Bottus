@@ -318,6 +318,117 @@ export class CalendarServiceV2 {
     }
   }
 
+  async updateRSVP(eventId: string, userId: string, status: 'yes' | 'no' | 'maybe'): Promise<boolean> {
+    if (!this.db) await this.initialize();
+
+    const results = this.db!.exec('SELECT rsvp FROM calendar_events WHERE id = ?', [eventId]);
+    if (!results.length || !results[0].values.length) {
+      return false;
+    }
+
+    const currentRsvp = results[0].values[0][0] as string | null;
+    const rsvpData = currentRsvp ? JSON.parse(currentRsvp) : {};
+
+    rsvpData[userId] = status;
+
+    this.db!.run('UPDATE calendar_events SET rsvp = ?, updatedAt = ? WHERE id = ?',
+      [JSON.stringify(rsvpData), Date.now(), eventId]);
+    this.save();
+
+    return true;
+  }
+
+  async getRSVP(eventId: string): Promise<Record<string, string>> {
+    if (!this.db) await this.initialize();
+
+    const results = this.db!.exec('SELECT rsvp FROM calendar_events WHERE id = ?', [eventId]);
+    if (!results.length || !results[0].values.length) {
+      return {};
+    }
+
+    const rsvp = results[0].values[0][0] as string | null;
+    return rsvp ? JSON.parse(rsvp) : {};
+  }
+
+  async getEventById(eventId: string): Promise<CalendarEvent | null> {
+    if (!this.db) await this.initialize();
+
+    const results = this.db!.exec(`
+      SELECT id, title, description, startTime, endTime, timezone, recurrence,
+             recurrenceEnd, location, creatorId, channelId, guildId, rsvp, reminders, createdAt, updatedAt
+      FROM calendar_events WHERE id = ?
+    `, [eventId]);
+
+    if (!results.length || !results[0].values.length) {
+      return null;
+    }
+
+    return rowToCalendarEvent(results[0].values[0]);
+  }
+
+  async findEventByTitle(channelId: string, title: string): Promise<CalendarEvent | null> {
+    if (!this.db) await this.initialize();
+
+    const results = this.db!.exec(`
+      SELECT id, title, description, startTime, endTime, timezone, recurrence,
+             recurrenceEnd, location, creatorId, channelId, guildId, rsvp, reminders, createdAt, updatedAt
+      FROM calendar_events
+      WHERE channelId = ? AND (LOWER(title) LIKE LOWER(?) OR LOWER(?) LIKE LOWER(title))
+      ORDER BY startTime ASC
+      LIMIT 1
+    `, [channelId, `%${title}%`, `%${title}%`]);
+
+    if (!results.length || !results[0].values.length) {
+      return null;
+    }
+
+    return rowToCalendarEvent(results[0].values[0]);
+  }
+
+  async checkConflicts(channelId: string, startTime: number, endTime?: number): Promise<CalendarEvent[]> {
+    if (!this.db) await this.initialize();
+
+    const events = await this.getEvents(channelId, 'all');
+    const conflicts: CalendarEvent[] = [];
+
+    for (const event of events) {
+      const eventEnd = event.endTime || event.startTime + 3600000;
+
+      if (endTime) {
+        if (startTime < eventEnd && endTime > event.startTime) {
+          conflicts.push(event);
+        }
+      } else {
+        if (startTime >= event.startTime && startTime < eventEnd) {
+          conflicts.push(event);
+        }
+      }
+    }
+
+    return conflicts;
+  }
+
+  async deleteEventByConsensus(eventId: string, voterIds: string[]): Promise<boolean> {
+    if (!this.db) await this.initialize();
+
+    const results = this.db!.exec('SELECT * FROM calendar_events WHERE id = ?', [eventId]);
+    if (!results.length || !results[0].values.length) {
+      return false;
+    }
+
+    const event = rowToCalendarEvent(results[0].values[0]);
+    const channelEvents = await this.getEvents(event.channelId, 'all');
+    const uniqueCreators = new Set(channelEvents.map(e => e.creatorId));
+
+    const threshold = Math.ceil(uniqueCreators.size * 0.66);
+
+    if (voterIds.length >= threshold) {
+      return this.deleteEvent(eventId, voterIds[0]);
+    }
+
+    return false;
+  }
+
   close(): void {
     for (const timeout of this.scheduledReminders.values()) {
       clearTimeout(timeout);

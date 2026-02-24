@@ -16,7 +16,7 @@ NanoClaw-inspired modular skill architecture:
 
 | Skill | Purpose |
 |-------|---------|
-| calendar-skill-v2 | Calendar events (CRUD, ICS export, week/month views) |
+|| calendar-skill-v2 | Calendar events (CRUD, RSVP, ICS export, week/month views, time proposals, conflict detection) |
 | memory-skill | User memory with clarification flow |
 | clarification-skill | Pending response handling (avtale/minne) |
 | day-details-skill | Day-specific event details |

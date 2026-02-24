@@ -98,6 +98,55 @@ class MockCalendarServiceV2 {
     }
     return false;
   }
+
+  async updateRSVP(eventId: string, userId: string, status: 'yes' | 'no' | 'maybe'): Promise<boolean> {
+    for (const events of this.events.values()) {
+      const event = events.find(e => e.id === eventId);
+      if (event) {
+        event.rsvp = event.rsvp || {};
+        event.rsvp[userId] = status;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  async getRSVP(eventId: string): Promise<Record<string, string>> {
+    for (const events of this.events.values()) {
+      const event = events.find(e => e.id === eventId);
+      if (event) {
+        return event.rsvp || {};
+      }
+    }
+    return {};
+  }
+
+  async findEventByTitle(channelId: string, title: string): Promise<any | null> {
+    const events = this.events.get(channelId) || [];
+    return events.find(e =>
+      e.title.toLowerCase().includes(title.toLowerCase()) ||
+      title.toLowerCase().includes(e.title.toLowerCase())
+    ) || null;
+  }
+
+  async checkConflicts(channelId: string, startTime: number, endTime?: number): Promise<any[]> {
+    const events = this.events.get(channelId) || [];
+    return events.filter(e => {
+      const eStart = new Date(e.startTime).getTime();
+      const eEnd = e.endTime ? new Date(e.endTime).getTime() : eStart + 3600000;
+      if (endTime) {
+        return startTime < eEnd && endTime > eStart;
+      }
+      return startTime >= eStart && startTime < eEnd;
+    });
+  }
+
+  async deleteEventByConsensus(eventId: string, voterIds: string[]): Promise<boolean> {
+    if (voterIds.length >= 2) {
+      return this.deleteEvent(eventId, voterIds[0]);
+    }
+    return false;
+  }
 }
 
 class MockCalendarDisplayService {
@@ -290,7 +339,7 @@ describe('CalendarSkillV2', () => {
     it('should return help message for unknown commands', async () => {
       const result = await skill.handle('random text without date', ctx);
       expect(result.handled).toBe(true);
-      expect(result.response).toContain('I can create calendar events');
+      expect(result.response).toContain('I can create events');
     });
   });
 });
