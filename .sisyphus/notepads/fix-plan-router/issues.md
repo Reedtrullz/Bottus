@@ -1,0 +1,4 @@
+- LSP warning: MemoryService and CalendarService imports were unused after refactor; removed to fix compile.
+- Event creation previously returned an eventId that was not used; adjusted to drop the unused assignment.
+- Route handler referenced userMessage in the medium-confidence path; signature updated to _userMessage to suppress unused warnings.
+- Ensure no other unused variables remain in src/relay/plan-router.ts.

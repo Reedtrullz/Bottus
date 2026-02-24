@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+*.log
+data/*.db
+data/*.json
+openclaw-data/
+openclaw-workspace/
+.DS_Store
+coverage/
