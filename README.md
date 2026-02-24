@@ -1,6 +1,6 @@
 # Ine-Discord Bot (Bottus)
 
-AI Discord bot with calendar management, image generation via ComfyUI, and Ollama LLM integration.
+AI Discord bot with calendar management, image generation via ComfyUI, and Ollama LLM integration. Supports both the native relay bot and NanoBot Gateway integration.
 
 ## Features
 
@@ -12,12 +12,23 @@ AI Discord bot with calendar management, image generation via ComfyUI, and Ollam
 - **Self-Healing** - Automatic retry with exponential backoff for failed operations
 - **Health Monitoring** - Built-in health check endpoint for external services
 - **Rate Limiting** - Per-user rate limiting (15 requests/minute)
+- **NanoBot Integration** - Runs as NanoBot Gateway channel for unified agent loop
+
+## Two Running Modes
+
+### Option 1: Relay Bot (Standalone)
+The original selfbot relay that handles Discord DMs/Group DMs directly.
+
+### Option 2: NanoBot Gateway
+Runs as a NanoBot channel, enabling the full NanoBot agent loop with skills, memory, and tools.
 
 ## Prerequisites
 
 - Node.js >= 18.0.0
-- Docker (for Ollama)
+- WSL2 (for GPU support with Ollama)
+- Ollama (installed in WSL2)
 - ComfyUI (optional, for image generation)
+- Python >= 3.11 (for NanoBot Gateway mode)
 
 ## Setup
 
@@ -27,22 +38,51 @@ npm install
 
 # Configure environment
 cp .env.example .env
-# Edit .env with your Discord bot token, Ollama endpoint, etc.
+# Edit .env with your Discord user token, Ollama endpoint, etc.
 
 # Build
 npm run build
 ```
 
-## Running
+### NanoBot Gateway Setup (Optional)
+
+To run via NanoBot Gateway:
 
 ```bash
-# Main bot (Eris client)
-npm run start
+# Install NanoBot
+pip install nanobot
 
+# Run setup script for Discord selfbot channel
+python3 scripts/setup-discord-selfbot.py
+
+# Configure NanoBot
+# Edit ~/.nanobot/config.json - see docs/discord-selfbot-setup.md
+```
+
+See [Discord Selfbot Setup Guide](docs/discord-selfbot-setup.md) for detailed instructions.
+
+## Running
+
+### Relay Bot (Standalone)
+
+```bash
 # Relay bot (discord.js-selfbot-v13)
 npm run start:relay
+```
 
-# Development mode
+### NanoBot Gateway
+
+```bash
+# Start NanoBot Gateway (port 18790)
+nanobot gateway -p 18790
+
+# Or via npm
+npm run start:gateway
+```
+
+### Development
+
+```bash
 npm run dev
 ```
 
@@ -73,9 +113,10 @@ Response includes status of Ollama and ComfyUI services.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `DISCORD_TOKEN` | Discord bot token | - |
+| `DISCORD_TOKEN` | Discord user token (selfbot) | - |
+| `DISCORD_USER_TOKEN` | Alias for DISCORD_TOKEN | - |
 | `OLLAMA_URL` | Ollama API endpoint | http://localhost:11434 |
-| `OLLAMA_MODEL` | Ollama model for prompt enhancement | llama3.2 |
+| `OLLAMA_MODEL` | Ollama model for prompt enhancement | llama3.1:8b |
 | `COMFYUI_URL` | ComfyUI API endpoint | http://localhost:8188 |
 | `COMFYUI_MODEL` | Primary image model | v1-5-pruned-emaonly.safetensors |
 | `COMFYUI_FALLBACK_MODEL` | Fallback image model | sd15_default.yaml |
@@ -90,12 +131,21 @@ src/
 │   ├── handlers/      # Message handlers
 │   ├── health.ts     # Health endpoint
 │   └── ollama.ts    # Ollama client
+├── gateway/         # NanoGateway skill dispatcher (experimental)
 ├── services/          # Domain services
 │   ├── self-healer.ts    # Self-healing wrapper
 │   ├── health-monitor.ts # Service health checks
 │   └── error-classifier.ts # Error categorization
 ├── db/               # SQLite via sql.js
 └── commands/         # Slash commands
+
+scripts/
+├── discord-client.js       # Node.js Discord selfbot client
+├── discord-selfbot-channel.py  # Python NanoBot channel (installed to site-packages)
+└── setup-discord-selfbot.py    # Installation script
+
+docs/
+└── discord-selfbot-setup.md   # NanoBot Discord selfbot setup guide
 ```
 
 ## Technology
@@ -110,3 +160,24 @@ src/
 ## License
 
 MIT
+
+## WSL2 Setup (for Ollama with GPU)
+
+```bash
+# Download and extract Ollama
+curl -fsSL https://ollama.com/download/ollama-linux-amd64.tar.zst -o /tmp/ollama.tar.zst
+mkdir -p ~/ollama && tar xf /tmp/ollama.tar.zst -C ~/ollama
+
+# Add to PATH (add to ~/.bashrc for persistence)
+export PATH=~/ollama/bin:$PATH
+export LD_LIBRARY_PATH=/usr/lib/wsl/lib:$LD_LIBRARY_PATH
+
+# Start Ollama
+nohup ollama serve > ~/ollama/ollama.log 2>&1 &
+
+# Pull your model
+ollama pull bazobehram/qwen3-14b-claude-4.5-opus-high-reasoning
+
+# Or use the startup script
+bash scripts/start-relay.sh
+```

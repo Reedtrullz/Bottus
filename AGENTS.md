@@ -1,5 +1,8 @@
 # AGENTS.md - Project Knowledge Base
 
+**Generated:** 2026-02-24  
+**Commit:** 55a6007  
+**Branch:** main  
 **Language:** TypeScript (ESM) | **Node:** >=18.0.0
 
 ---
@@ -16,16 +19,16 @@ npm run test:watch    # Watch mode
 # Single test file
 npx vitest run tests/relay/calendar-skill-v2.test.ts
 
-# Test by name
+# Test by name pattern
 npx vitest run -t "should handle"
 
-# Test in specific file with name
+# Test specific file with name
 npx vitest run tests/relay/ollama.test.ts -t "should timeout"
 
-# Grep pattern
+# Grep pattern across tests
 npx vitest run --grep "calendar"
 
-# Directory
+# Run test directory
 npx vitest run tests/relay/
 ```
 
@@ -120,7 +123,6 @@ const category = classifier.classify(error, 'optional context');
 ### Self-Healer
 ```typescript
 import { selfHealer } from './services/self-healer.js';
-
 const result = await selfHealer.executeWithHealing(
   () => ollama.chat(prompt),
   { context: 'ollama chat', fallback: () => simpleResponse() }
@@ -189,9 +191,10 @@ this.db!.run(`INSERT INTO events (id) VALUES (?)`, [event.id]);
 | Skills | src/relay/skills/*.ts |
 | Services | src/services/*.ts |
 | Self-healing | src/services/{error-classifier,health-monitor,self-healer}.ts |
-| Health endpoint | src/relay/health.ts (port 3001) |
-| Tests | tests/**/*.test.ts |
-| Database | src/db/index.ts |
+KB|| Tests | tests/**/*.test.ts |
+RD|| Database | src/db/index.ts |
+JQ|| Scripts | scripts/*.js, scripts/*.py |
+QM|| Docs | docs/*.md |
 
 ---
 
@@ -211,3 +214,5 @@ this.db!.run(`INSERT INTO events (id) VALUES (?)`, [event.id]);
 - **Timezone:** Europe/Oslo (hardcoded)
 - **Language:** Norwegian/English bilingual
 - **Discord:** Uses selfbot (discord.js-selfbot-v13) for group DM access
+- **Runtime:** WSL2 with native Ollama (no Docker)
+- **Testing:** Vitest only (no Jest)
