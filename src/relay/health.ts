@@ -1,4 +1,5 @@
 import http from 'http';
+import { logger } from '../utils/logger.js';
 import { healthMonitor } from '../services/health-monitor.js';
 
 const PORT = process.env.HEALTH_PORT || 3001;
@@ -33,7 +34,7 @@ export function startHealthEndpoint(): void {
   });
   
   server.listen(PORT, () => {
-    console.log(`[Health] Health endpoint running on port ${PORT}`);
+    logger.info(`[Health] Health endpoint running on port ${PORT}`);
   });
 }
 

@@ -1,4 +1,5 @@
 import type { Skill, HandlerContext, SkillResponse } from './interfaces.js';
+import { logger } from '../../utils/logger.js';
 import { ComfyUIClient } from '../../services/comfyui.js';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -93,7 +94,7 @@ export class ImageSkill implements Skill {
     try {
       const response = await fetch(imageUrl);
       if (!response.ok) {
-        console.error(`[ImageSkill] Failed to download image: ${response.status}`);
+        logger.error(`[ImageSkill] Failed to download image: ${response.status}`);
         return null;
       }
 
@@ -106,11 +107,11 @@ export class ImageSkill implements Skill {
       const tempFilePath = path.join(tempDir, filename);
 
       fs.writeFileSync(tempFilePath, buffer);
-      console.log(`[ImageSkill] Saved image to temp file: ${tempFilePath}`);
+      logger.info(`[ImageSkill] Saved image to temp file: ${tempFilePath}`);
 
       return tempFilePath;
     } catch (error) {
-      console.error(`[ImageSkill] Error downloading image:`, error);
+      logger.error(`[ImageSkill] Error downloading image:`, error as any);
       return null;
     }
   }

@@ -7,6 +7,7 @@
 import { MessageHandler, HandlerContext, HandlerResult } from './interfaces.js';
 import { extractImagePrompt } from '../utils/detectors.js';
 import { ComfyUIClient } from '../../services/comfyui.js';
+import { logger } from '../../utils/logger.js';
 
 export class ImageHandler implements MessageHandler {
   readonly name = 'image';
@@ -35,7 +36,7 @@ export class ImageHandler implements MessageHandler {
         await ctx.discord.sendMessage(ctx.channelId, `${result.imageUrl}`);
         return { handled: true };
       } else {
-        console.warn('[Relay] Image generation failed:', result.error);
+        logger.warn('[Relay] Image generation failed:', { error: result.error });
         await ctx.discord.sendMessage(
           ctx.channelId,
           'Beklager, bildegenerering feilet: ' + (result.error || 'ukjent feil')
@@ -43,7 +44,7 @@ export class ImageHandler implements MessageHandler {
         return { handled: true };
       }
     } catch (err) {
-      console.error('[Relay] ComfyUI image generation failed:', err);
+      logger.error('[Relay] ComfyUI image generation failed:', { error: err instanceof Error ? err.message : String(err) });
       return { handled: true, error: err instanceof Error ? err.message : String(err) };
     }
   }

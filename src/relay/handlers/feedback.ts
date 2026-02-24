@@ -2,6 +2,7 @@ import initSqlJs, { Database as SqlJsDatabase } from 'sql.js';
 import { v4 as uuid } from 'uuid';
 import { Interaction, Critique, createInteractionsDb } from '../../db/interactions-schema.js';
 import * as fs from 'fs';
+import { logger } from '../../utils/logger.js';
 
 export class FeedbackHandler {
   private db: SqlJsDatabase | null = null;
@@ -70,13 +71,13 @@ export class FeedbackHandler {
     context: string
   ): Promise<Critique | null> {
     if (!this.criticPrompt) return null;
-
+    
     try {
       const prompt = this.criticPrompt
         .replace('{{BOT_RESPONSE}}', interaction.botResponse)
         .replace('{{USER_MESSAGE}}', interaction.userMessage)
         .replace('{{CONTEXT}}', context);
-
+      
       const response = await fetch(`${this.ollamaUrl}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -87,19 +88,20 @@ export class FeedbackHandler {
         }),
       });
 
-      const data = await response.json() as { message?: { content?: string } };
-      const critiqueText = data.message?.content || '';
+      const data = await response.json() as any;
+      const critiqueText = (data?.message?.content ?? '') as string;
       
       let parsed: any = {};
       try {
-        const jsonMatch = critiqueText.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          parsed = JSON.parse(jsonMatch[0]);
-        }
-      } catch (e) {
-        console.error('[CRITIC] Failed to parse critique JSON:', e);
+      const jsonMatch = critiqueText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const jsonString = jsonMatch[0] as string;
+        parsed = JSON.parse(jsonString);
       }
-
+      } catch (e) {
+        logger.error('[CRITIC] Failed to parse critique JSON:', { error: e as any });
+      }
+      
       const critique: Critique = {
         id: uuid(),
         interactionId: interaction.id,
@@ -108,7 +110,7 @@ export class FeedbackHandler {
         suggestions: parsed.suggestions?.join('\n') || '',
         timestamp: Date.now(),
       };
-
+      
       this.db!.run(`
         INSERT INTO critiques (id, interactionId, critique, score, suggestions, timestamp)
         VALUES (?, ?, ?, ?, ?, ?)
@@ -116,10 +118,10 @@ export class FeedbackHandler {
         critique.id, critique.interactionId, critique.critique,
         critique.score, critique.suggestions, critique.timestamp
       ]);
-
+      
       return critique;
     } catch (error) {
-      console.error('[CRITIC] Failed to critique response:', error);
+      logger.error('[CRITIC] Failed to critique response:', { error: error as any });
       return null;
     }
   }
@@ -146,7 +148,7 @@ export class FeedbackHandler {
       feedback: null,
       feedbackComment: null,
     };
-
+    
     this.db!.run(`
       INSERT INTO interactions 
       (id, messageId, channelId, userId, userMessage, botResponse, skillsUsed, timestamp)
@@ -156,7 +158,7 @@ export class FeedbackHandler {
       interaction.userId, interaction.userMessage, interaction.botResponse,
       interaction.skillsUsed, interaction.timestamp
     ]);
-
+    
     return interaction;
   }
 

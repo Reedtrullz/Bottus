@@ -1,11 +1,16 @@
 import { config } from 'dotenv';
+import './utils/console-override.js';
 import { DiscordRelay } from './discord.js';
 import { eventDb, taskDb, initializeDatabase, metricsDb } from '../db/index.js';
 import { ExtractionService, ExtractedItem } from '../services/extraction.js';
 import { rsvpDb } from '../db/index.js';
 import { OllamaClient } from './ollama.js';
 import { CircuitBreaker } from '../utils/error-recovery.js';
-import { logger } from '../utils/logger.js';
+import { logger } from './utils/logger.js';
+declare const console: any;
+console.log = (...args: any[]) => logger.info(args.map(a => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ')) as any;
+console.error = (...args: any[]) => logger.error(args.map(a => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ')) as any;
+console.warn = (...args: any[]) => logger.warn(args.map(a => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ')) as any;
 import { selfHealer } from '../services/self-healer.js';
 import { healthMonitor } from '../services/health-monitor.js';
 import { ComfyUIClient } from '../services/comfyui.js';
@@ -192,21 +197,21 @@ const HISTORY_MAX_MESSAGES = parseInt(process.env.HISTORY_MAX_MESSAGES || '5', 1
 
   async function main() {
   const VERSION = '1.0.0';
-  console.log('╔═══════════════════════════════════════════════════════╗');
-  console.log('║           Ine Ollama Relay Bot                      ║');
-  console.log(`║           Version: ${VERSION.padEnd(39)}║`);
-  console.log(`║           Port:    3001 (health)                      ║`);
-  console.log('╚═══════════════════════════════════════════════════════╝');
-  console.log('[Relay] Starting Ine Ollama Relay...');
+  logger.info('╔═══════════════════════════════════════════════════════╗');
+  logger.info('║           Ine Ollama Relay Bot                      ║');
+  logger.info(`║           Version: ${VERSION.padEnd(39)}║`);
+  logger.info(`║           Port:    3001 (health)                      ║`);
+  logger.info('╚═══════════════════════════════════════════════════════╝');
+  logger.info('[Relay] Starting Ine Ollama Relay...');
 
   if (!DISCORD_TOKEN) {
-    console.error('[Relay] ERROR:', t('errors.missingToken'));
+    logger.error('[Relay] ERROR:', { context: 'Relay', message: t('errors.missingToken') });
     process.exit(1);
   }
 
-  console.log('[Relay] Initializing database...');
+  logger.info('[Relay] Initializing database...', { context: 'Relay' });
   await initializeDatabase();
-  console.log('[Relay] Database initialized');
+  logger.info('[Relay] Database initialized', { context: 'Relay' });
   
   // Start health endpoint
   startHealthEndpoint();
@@ -379,7 +384,7 @@ const HISTORY_MAX_MESSAGES = parseInt(process.env.HISTORY_MAX_MESSAGES || '5', 1
     const actions = await planRouter.route(extractionResult, userMessage, userId, channelId, discord);
     const tookAction = actions.some(a => a.type !== 'none');
     if (tookAction) {
-      console.log('[Relay] PlanRouter handled extraction');
+      logger.info('[Relay] PlanRouter handled extraction', { context: 'Relay' });
       return;
     }
   }
@@ -395,9 +400,9 @@ const HISTORY_MAX_MESSAGES = parseInt(process.env.HISTORY_MAX_MESSAGES || '5', 1
     }).join(' | ');
     enhancedMessage = `${userMessage}\n[Extraction] ${snippets}`;
     // Log extraction details for visibility
-    console.log('[Extraction] Found', extractionResult.length, 'item(s):', snippets);
+    logger.info('[Extraction] Found ' + extractionResult.length + ' item(s): ' + snippets, { context: 'Relay' });
   } else {
-    console.log('[Extraction] No items extracted from message');
+  logger.info('[Extraction] No items extracted from message', { context: 'Relay' });
   }
 
   // Inject memory context if available
@@ -518,7 +523,7 @@ if (result.success && result.imageUrl) {
   return;
 }
           } catch (err) {
-            console.error('[Relay] ComfyUI image generation failed:', err);
+            logger.error('[Relay] ComfyUI image generation failed:', { context: 'Relay', error: err as any });
           }
         }
 
@@ -539,7 +544,7 @@ if (techStackHandler.canHandle(userMessage, handlerCtx)) {
 }
 if (helpHandler.canHandle(userMessage, handlerCtx)) {
   const helpResult = await helpHandler.handle(userMessage, handlerCtx);
-  console.log('[Relay] HelpHandler result:', helpResult);
+  logger.info('[Relay] HelpHandler result:', { context: 'Relay', result: helpResult });
   if (helpResult.handled) return;
 }
 
@@ -868,20 +873,20 @@ if (imageHandler.canHandle(userMessage, handlerCtx)) {
         } else {
           await discord.sendMessage(channelId, 'Kalenderen kunne ikke bygges akkurat nå.');
         }
-      } catch (err) {
-        console.error('[Relay] Calendar embed error:', err);
+  } catch (err) {
+    logger.error('[Relay] Calendar embed error:', { context: 'Relay', error: err });
         await discord.sendMessage(channelId, t('calendar.fetchFailed'));
       }
       return;
     }
     // Proceed with normal flow
-    try {
-      console.log(`[Relay] Detected @mention. Running extraction...`);
+  try {
+  logger.info('[Relay] Detected @mention. Running extraction...', { context: 'Relay' });
       const extractionResult = extraction.extract(enhancedUserMessage);
       await handleExtractionFlow(extractionResult, enhancedUserMessage, channelId);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error(`[Relay] Error: ${errorMessage}`);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    logger.error(`[Relay] Error: ${errorMessage}`, { context: 'Relay' });
       await discord.sendMessage(channelId, `Sorry, I couldn't get a response. Error: ${errorMessage}`);
     }
   });
@@ -892,19 +897,19 @@ if (imageHandler.canHandle(userMessage, handlerCtx)) {
         try {
           const comfyHealth = await fetch(`${COMFYUI_URL || 'http://localhost:8188'}/system_stats`);
           if (comfyHealth && comfyHealth.ok) {
-            console.log('[Relay] ComfyUI health: OK (post-login)');
+            logger.info('[Relay] ComfyUI health: OK (post-login)', { context: 'Relay' });
             try {
               const sent = await discord.sendDMToUser(READY_USER, 
                 '🎨 **Bildegenerering er klar!**\\n\\nJeg kan nå lage bilder for deg. Prøv f.eks:\\n• "lag et bilde av et ekorn"\\n• "tegn en koselig katt"\\n• "generer et bilde av en strand i solnedgang"');
               if (sent) {
-                console.log(`[Relay] Sent readiness message to ${READY_USER}`);
+                logger.info(`[Relay] Sent readiness message to ${READY_USER}`, { context: 'Relay' });
               }
             } catch (e) {
-              console.warn('[Relay] Failed to send readiness DM:', e);
+              logger.warn('[Relay] Failed to send readiness DM:', { context: 'Relay', error: e as any });
             }
           }
         } catch (e) {
-          console.warn('[Relay] ComfyUI health check failed:', e);
+          logger.warn('[Relay] ComfyUI health check failed:', { context: 'Relay', error: e as any });
         }
 
   // In-memory cache to avoid duplicate reminders within the same runtime
@@ -940,7 +945,7 @@ if (imageHandler.canHandle(userMessage, handlerCtx)) {
                 await discord.sendMessage(channelId, message);
               } catch (err) {
                 // If we fail to send, log but keep trying on next tick
-                console.error('[Relay] Reminder send failed:', err);
+                logger.error('[Relay] Reminder send failed:', { context: 'Relay', error: err as any });
               }
             } else {
               console.warn('[Relay] Reminder skipped: missing channel_id for event', id);
@@ -950,7 +955,7 @@ if (imageHandler.canHandle(userMessage, handlerCtx)) {
         }
       }
     } catch (err) {
-      console.error('[Relay] Reminder timer error:', err);
+      logger.error('[Relay] Reminder timer error:', { context: 'Relay', error: err as any });
     }
   };
 

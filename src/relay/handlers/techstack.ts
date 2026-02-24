@@ -1,7 +1,9 @@
 import { MessageHandler, HandlerContext, HandlerResult } from './interfaces.js';
+import { logger } from '../../utils/logger.js';
 
 export class TechStackHandler implements MessageHandler {
   readonly name = 'techstack';
+
   private readonly TECHSTACK_RESPONSE = [
     'Ah, du vil vite hvordan jeg fungerer? 😊',
     '',
@@ -35,7 +37,7 @@ export class TechStackHandler implements MessageHandler {
       await ctx.discord.sendMessage(ctx.channelId, this.TECHSTACK_RESPONSE);
       return { handled: true };
     } catch (e) {
-      console.error('[Relay] Tech stack error:', e);
+      logger.error('[Relay] Tech stack error:', { error: (e as any) });
       return { handled: true, error: e instanceof Error ? e.message : String(e) };
     }
   }

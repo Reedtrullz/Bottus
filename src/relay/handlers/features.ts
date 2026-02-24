@@ -1,4 +1,5 @@
 import { MessageHandler, HandlerContext, HandlerResult } from './interfaces.js';
+import { logger } from '../../utils/logger.js';
 import { ToneService } from '../../services/tone.js';
 
 export class FeaturesHandler implements MessageHandler {
@@ -34,7 +35,7 @@ export class FeaturesHandler implements MessageHandler {
       await ctx.discord.sendMessage(ctx.channelId, toned);
       return { handled: true };
     } catch (e) {
-      console.error('[Relay] Features error:', e);
+      logger.error('[Relay] Features error:', { error: e as any });
       return { handled: true, error: e instanceof Error ? e.message : String(e) };
     }
   }

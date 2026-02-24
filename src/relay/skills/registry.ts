@@ -1,4 +1,5 @@
 import type { Skill, SkillRegistry, HandlerContext } from './interfaces.js';
+import { logger } from '../../utils/logger.js';
 export type { HandlerContext };
 
 export class InMemorySkillRegistry implements SkillRegistry {
@@ -6,16 +7,16 @@ export class InMemorySkillRegistry implements SkillRegistry {
 
   register(skill: Skill): void {
     if (this.skills.has(skill.name)) {
-      console.warn(`[SkillRegistry] Skill "${skill.name}" already registered, replacing`);
+      logger.warn(`[SkillRegistry] Skill "${skill.name}" already registered, replacing`);
     }
     this.skills.set(skill.name, skill);
-    console.log(`[SkillRegistry] Registered skill: ${skill.name}`);
+    logger.info(`[SkillRegistry] Registered skill: ${skill.name}`);
   }
 
   unregister(name: string): boolean {
     const deleted = this.skills.delete(name);
     if (deleted) {
-      console.log(`[SkillRegistry] Unregistered skill: ${name}`);
+      logger.info(`[SkillRegistry] Unregistered skill: ${name}`);
     }
     return deleted;
   }

@@ -2,6 +2,7 @@ import { MessageHandler, HandlerContext, HandlerResult } from './interfaces.js';
 import { isMemoryStore, isMemoryQuery } from '../utils/detectors.js';
 import { MemoryService } from '../../services/memory.js';
 import { ToneService } from '../../services/tone.js';
+import { logger } from '../../utils/logger.js';
 
 const datePatterns = [
   'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag', 'søndag',
@@ -37,7 +38,7 @@ export class MemoryHandler implements MessageHandler {
         
         if (hasDatePattern || hasTimePattern) {
           this.pendingClarifications.set(ctx.channelId, { text: textToStore, timestamp: Date.now() });
-          await ctx.discord.sendMessage(ctx.channelId, 
+          await ctx.discord.sendMessage(ctx.channelId,
             'Jeg ser at dette kan være en avtale eller et minne. Vil du:\n' +
             '• 🗓️ **Opprett som kalenderhendelse**\n' +
             '• 💾 **Lagre som et minne**\n\n' +
@@ -63,7 +64,7 @@ export class MemoryHandler implements MessageHandler {
         return { handled: true };
       }
     } catch (e) {
-      console.error('[Relay] Memory handling error:', (e as Error)?.message ?? e);
+      logger.error('[Relay] Memory handling error:', { error: (e as Error)?.message ?? e });
       return { handled: true, error: e instanceof Error ? e.message : String(e) };
     }
     return { handled: false };

@@ -1,4 +1,9 @@
 import { eventDb, taskDb } from '../db/index.js';
+import { logger } from '../utils/logger.js';
+declare const console: any;
+console.log = (...args: any[]) => logger.info(args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ')) as any;
+console.error = (...args: any[]) => logger.error(args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ')) as any;
+console.warn = (...args: any[]) => logger.warn(args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ')) as any;
 import { ExtractedItem } from '../services/extraction.js';
 import { ToneService } from '../services/tone.js';
 import { DiscordRelay } from './discord.js';

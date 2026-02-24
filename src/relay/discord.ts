@@ -1,5 +1,6 @@
 
 import { Client } from 'discord.js-selfbot-v13';
+import { logger } from '../utils/logger.js';
 
 interface MessageHistory {
   content: string;
@@ -22,11 +23,11 @@ export class DiscordRelay {
     this.client = new Client();
 
     this.client.on('error', (err: Error) => {
-      console.error('[Discord] Client error:', err.message);
+      logger.error('[Discord] Client error: ' + (err?.message ?? ''));
     });
 
     this.client.on('disconnect', () => {
-      console.log('[Discord] Client disconnected');
+      logger.info('[Discord] Client disconnected');
     });
 
     this.client.on('ready', () => {
@@ -35,7 +36,7 @@ export class DiscordRelay {
       this.userId = u?.id ?? '';
       this.username = u?.username ?? '';
       const disc = u?.discriminator ?? '';
-      console.log(`[Discord] Logged in as ${this.username}#${disc} (ID: ${this.userId})`);
+      logger.info(`[Discord] Logged in as ${this.username}#${disc} (ID: ${this.userId})`);
     });
 
     this.client.on('message', async (msg: any) => {
@@ -50,7 +51,7 @@ export class DiscordRelay {
       this.addToHistory(channelId, { content, author, timestamp: Date.now() });
 
       if (this.isMentioned(content) || (isDM && content.length > 0)) {
-        console.log(`[Discord] ${isDM ? 'DM' : 'Group DM'} from ${author}: ${content.substring(0, 50)}...`);
+        logger.info(`[Discord] ${isDM ? 'DM' : 'Group DM'} from ${author}: ${content.substring(0, 50)}...`);
         if (this.mentionCallback) {
           await this.mentionCallback(msg);
         }
@@ -119,14 +120,14 @@ export class DiscordRelay {
       if (user) {
         const dmChannel = await user.createDM();
         await dmChannel.send(content);
-        console.log(`[Discord] Sent DM to ${username}`);
+        logger.info(`[Discord] Sent DM to ${username}`);
         return true;
       } else {
-        console.warn(`[Discord] User not found: ${username}`);
+        logger.warn(`[Discord] User not found: ${username}`);
         return false;
       }
     } catch (err) {
-      console.error(`[Discord] Failed to send DM to ${username}:`, err);
+      logger.error(`[Discord] Failed to send DM to ${username}:`, err as any);
       return false;
     }
   }
@@ -149,19 +150,19 @@ export class DiscordRelay {
       }
       
       const sent = await chanAny.send(payload);
-      console.log(`[Discord] Sent message to channel ${channelId}${options?.file ? ' with file' : ''}`);
+      logger.info(`[Discord] Sent message to channel ${channelId}${options?.file ? ' with file' : ''}`);
       return sent;
     }
   }
 
   async login(): Promise<void> {
-    console.log('[Discord] Attempting login...');
+    logger.info('[Discord] Attempting login...');
     try {
       await this.client.login(this.token);
-      console.log('[Discord] Login successful');
+      logger.info('[Discord] Login successful');
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error);
-      console.error(`[Discord] Login failed: ${errMsg}`);
+      logger.error(`[Discord] Login failed: ${errMsg}`);
       throw error;
     }
   }

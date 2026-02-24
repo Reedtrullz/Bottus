@@ -6,6 +6,7 @@
  */
 
 import { MessageHandler, HandlerContext, HandlerResult } from './interfaces.js';
+import { logger } from '../../utils/logger.js';
 
 type HelpCategory = 'identity' | 'capabilities' | 'calendar' | 'memory' | 'images' | 'reminders' | 'polls' | 'overview';
 
@@ -136,10 +137,10 @@ export class HelpHandler implements MessageHandler {
       const identityMatch = identityPatterns.some(p => m.includes(p));
       
       const category = this.detectCategory(m);
-      console.log(`[Relay] HelpHandler canHandle: msg="${m}", identityMatch=${identityMatch}, category="${category}"`);
+      logger.info(`[Relay] HelpHandler canHandle: msg="${m}", identityMatch=${identityMatch}, category="${category}"`);
       return category !== null;
     } catch (e) {
-      console.error(`[Relay] HelpHandler canHandle ERROR:`, e);
+      logger.error(`[Relay] HelpHandler canHandle ERROR:`, e as any);
       return false;
     }
   }
@@ -148,13 +149,13 @@ export class HelpHandler implements MessageHandler {
     try {
       const category = this.detectCategory(message) || 'overview';
       const lang = this.detectLanguage(message);
-      console.log(`[Relay] HelpHandler handle: category="${category}", lang="${lang}"`);
+      logger.info(`[Relay] HelpHandler handle: category="${category}", lang="${lang}"`);
       const response = this.buildResponse(category, lang);
       
       await ctx.discord.sendMessage(ctx.channelId, response);
       return { handled: true };
-    } catch (e) {
-      console.error('[Relay] HelpHandler error:', e);
+  } catch (e) {
+      logger.error('[Relay] HelpHandler error:', e as any);
       return { handled: true, error: e instanceof Error ? e.message : String(e) };
     }
   }
