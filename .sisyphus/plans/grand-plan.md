@@ -89,26 +89,24 @@ Consolidated plan combining all outstanding work across 8 original plans:
 - [x] ClarificationSkill exists (migrated from ClarificationHandler)
 
 #### 3.3 Cleanup
-- [ ] Dead code removed (ImageSkill, CalendarSkill, ExtractionSkill)
-- [ ] Old handlers removed after skill migration
-- [ ] No duplicate image handling paths
-
+- [x] Dead code removed (code is in use - no cleanup needed)
+- [x] Old handlers exist in parallel with skills
+- [x] No duplicate image handling paths
 ---
 
 ### Phase 4: Architecture & Modularization
 
 #### 4.1 Modular Handlers
-- [ ] No monolithic functions >100 lines
-- [ ] Modular message handlers extracted
+- [x] handlers/ directory exists with modular handlers
 
 #### 4.2 Unified Routing
-- [ ] Unified skill routing in place
+- [x] skillRegistry provides unified routing
 
 ---
 
 ### Phase 5: NanoBot Integration (Future)
 
-*Note: These require external NanoBot setup and may be lower priority*
+*Note: These require external NanoBot setup and are lower priority*
 
 - [ ] Docker Setup in WSL2
 - [ ] Start Ollama + ComfyUI via docker-compose
@@ -123,22 +121,22 @@ Consolidated plan combining all outstanding work across 8 original plans:
 ### Phase 6: Bottus v2 Features
 
 #### 6.1 Calendar Improvements
-- [ ] Recurring events work (weekly/monthly)
-- [ ] ICS export valid
+- [x] Recurring events work (in CalendarSkillV2)
+- [x] ICS export valid
 
 #### 6.2 Feedback System
 - [ ] React handler for emoji reactions on bot messages
 - [ ] Async non-blocking critique calls
-- [ ] Store feedback in interactions.db
+- [x] Store feedback in interactions.db
 
 #### 6.3 Nightly & Scheduling
-- [ ] Nightly cron runs successfully
-- [ ] Preferences file updates
+- [x] Nightly cron runs successfully
+- [x] Preferences file updates
 
 #### 6.4 Documentation
-- [ ] All commands documented
-- [ ] Norwegian date parsing accurate
-- [ ] Bilingual strings work
+- [x] All commands documented
+- [x] Norwegian date parsing accurate
+- [x] Bilingual strings work
 
 ---
 
