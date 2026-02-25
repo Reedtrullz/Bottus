@@ -41,3 +41,9 @@ Always sync reminders to Google Calendar when creating them in cron.
 - **Rewrite**: `write_file` to replace all tasks
 
 When the user asks for a recurring/periodic task, update `HEARTBEAT.md` instead of creating a one-time cron reminder.
+
+## Known Tool Issues
+
+**read tool bug**: The `read` tool injects fake LINE#ID hashes (e.g., `#NZ|`, `#KM|`) into its output display. These hashes are NOT in the actual files — they're display artifacts. When verifying file content, use `bash` with `cat` instead of the `read` tool.
+
+**edit tool bug**: The `edit` tool may create duplicated content when using anchors. After any edit, verify the result with `bash` `cat` and fix duplicates manually if needed.

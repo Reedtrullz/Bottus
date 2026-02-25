@@ -21,13 +21,15 @@ export enum Permission {
   MODIFY_PERMISSIONS = 'admin:permissions',
   MANAGE_SKILLS = 'admin:skills',
   EXPORT_DATA = 'admin:export',
+  APPROVE_PROPOSAL = 'proposal:approve',
+  REJECT_PROPOSAL = 'proposal:reject',
   ALL = '*',
 }
 
 const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   [UserRole.MEMBER]: [Permission.QUERY_CALENDAR, Permission.QUERY_MEMORY, Permission.QUERY_IMAGE],
   [UserRole.CONTRIBUTOR]: [Permission.QUERY_CALENDAR, Permission.QUERY_MEMORY, Permission.QUERY_IMAGE, Permission.CREATE_EVENT, Permission.CREATE_MEMORY, Permission.RSVP],
-  [UserRole.ADMIN]: [Permission.QUERY_CALENDAR, Permission.QUERY_MEMORY, Permission.QUERY_IMAGE, Permission.CREATE_EVENT, Permission.CREATE_MEMORY, Permission.RSVP, Permission.DELETE_EVENT, Permission.DELETE_MEMORY, Permission.CLEAR_CHANNEL_MEMORY, Permission.EXPORT_DATA],
+  [UserRole.ADMIN]: [Permission.QUERY_CALENDAR, Permission.QUERY_MEMORY, Permission.QUERY_IMAGE, Permission.CREATE_EVENT, Permission.CREATE_MEMORY, Permission.RSVP, Permission.DELETE_EVENT, Permission.DELETE_MEMORY, Permission.CLEAR_CHANNEL_MEMORY, Permission.EXPORT_DATA, Permission.MODIFY_PERMISSIONS, Permission.APPROVE_PROPOSAL, Permission.REJECT_PROPOSAL],
   [UserRole.OWNER]: [Permission.ALL],
 };
 

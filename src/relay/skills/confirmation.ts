@@ -9,6 +9,8 @@ export enum ConfirmationType {
   DELETE_MEMORY = 'delete_memory',
   EXPORT_DATA = 'export_data',
   ROLE_CHANGE = 'role_change',
+  APPROVE_PROPOSAL = 'approve_proposal',
+  REJECT_PROPOSAL = 'reject_proposal',
 }
 
 export interface PendingConfirmation {

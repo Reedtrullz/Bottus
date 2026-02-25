@@ -18,6 +18,7 @@ Modular message handler architecture for relay message processing. Implements a 
 | features.ts | Capabilities response |
 | techstack.ts | Tech stack explanation |
 | teach.ts | Teaching handler |
+| proposal.ts | Proposal approve/reject commands |
 
 ## HANDLER INTERFACE
 

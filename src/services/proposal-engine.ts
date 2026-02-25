@@ -1,5 +1,7 @@
 import { proposalDb } from '../db/index.js'
 import { v4 as uuidv4 } from 'uuid'
+import { ConfirmationService, ConfirmationType, PendingConfirmation } from '../relay/skills/confirmation.js'
+import { PermissionService, Permission } from '../relay/skills/permission.js'
 
 export interface CodeProposal {
   id: string
@@ -21,7 +23,7 @@ export interface CodeProposal {
   appliedAt?: string
 }
 
-export abstract class ProposalEngine {
+export class ProposalEngine {
   // Sanitizes prompts to prevent prompt injection attacks
   sanitizePrompt(input: string): string {
     if (!input) return "";
@@ -31,9 +33,9 @@ export abstract class ProposalEngine {
       /ignore prior(.*)instructions/gi,
       /ignore previous instructions/gi,
       /override system prompt/gi,
-      /you are now\\s+[^.\\n]+/gi,
-      /system:\\s*[^\\n\\r]*/gi,
-      /```system[\\s\\S]*?```/gi,
+      /you are now\s+[^.\n]+/gi,
+      /system:\s*[^\n\r]*/gi,
+      /```system[\s\S]*?```/gi,
       /system prompt/gi,
       /please ignore.*instructions/gi
     ];
@@ -43,9 +45,42 @@ export abstract class ProposalEngine {
     return sanitized.trim();
   }
   protected db = proposalDb
-  constructor(db?: typeof proposalDb) {
+  protected confirmationService?: ConfirmationService
+  protected permissionService?: PermissionService
+
+  constructor(
+    db?: typeof proposalDb,
+    confirmationService?: ConfirmationService,
+    permissionService?: PermissionService
+  ) {
     if (db) this.db = db
+    if (confirmationService) this.confirmationService = confirmationService
+    if (permissionService) this.permissionService = permissionService
   }
+
+  // Check if user has a specific permission
+  checkPermission(userId: string, channelId: string, permission: Permission): boolean {
+    if (!this.permissionService) {
+      // If no permission service, allow by default (backward compatibility)
+      return true
+    }
+    return this.permissionService.hasPermission(channelId, userId, permission)
+  }
+
+  // Request confirmation for a dangerous action
+  requestConfirmation(
+    type: ConfirmationType,
+    userId: string,
+    channelId: string,
+    details: Record<string, unknown> = {}
+  ): PendingConfirmation | null {
+    if (!this.confirmationService) {
+      // If no confirmation service, return null
+      return null
+    }
+    return this.confirmationService.createConfirmation(type, userId, channelId, details)
+  }
+
   // Audit logging for proposal actions (create, approve, reject, validate)
   public logAudit(action: string, proposalId: string, userId: string, details?: string): void {
     const timestamp = new Date().toISOString()
@@ -115,6 +150,7 @@ export abstract class ProposalEngine {
       status: input.status ?? 'pending',
     } as CodeProposal
   }
+
   async validateProposal(input: CodeProposal): Promise<boolean> {
     type InputLike = { id?: string; proposal_id?: string; proposalId?: string };
     const inputLike = input as unknown as InputLike;
@@ -170,7 +206,14 @@ export abstract class ProposalEngine {
     }
     return dispatched;
   }
-  async approve(proposalId: string, approverId: string): Promise<CodeProposal | null> {
+
+  async approve(proposalId: string, approverId: string, channelId: string = ''): Promise<CodeProposal | null> {
+    // Check permission before approving (requires ADMIN role)
+    if (channelId && !this.checkPermission(approverId, channelId, Permission.MODIFY_PERMISSIONS)) {
+      this.logAudit('APPROVE_DENIED', proposalId, approverId, 'User lacks MODIFY_PERMISSIONS permission')
+      return null
+    }
+
     // Load the existing proposal
     const existing = await this.getProposal(proposalId)
     if (!existing) {
@@ -189,10 +232,20 @@ export abstract class ProposalEngine {
     // Persist the update
     await (this.db as any).update?.(payload)
 
+    // Log successful approval
+    this.logAudit('APPROVED', proposalId, approverId)
+
     // Return the freshly updated proposal
     return this.getProposal(proposalId)
   }
-  async reject(proposalId: string, rejectedBy: string, reason: string): Promise<CodeProposal | null> {
+
+  async reject(proposalId: string, rejectedBy: string, reason: string, channelId: string = ''): Promise<CodeProposal | null> {
+    // Check permission before rejecting (requires ADMIN role)
+    if (channelId && !this.checkPermission(rejectedBy, channelId, Permission.MODIFY_PERMISSIONS)) {
+      this.logAudit('REJECT_DENIED', proposalId, rejectedBy, 'User lacks MODIFY_PERMISSIONS permission')
+      return null
+    }
+
     // 1) Check existence of the proposal
     const existing = await this.getProposal(proposalId)
     if (!existing) {
@@ -208,9 +261,14 @@ export abstract class ProposalEngine {
     }
     // 3) Persist the update to the database
     await (this.db as any).update?.(payload)
+
+    // Log successful rejection
+    this.logAudit('REJECTED', proposalId, rejectedBy, reason)
+
     // 4) Return the updated proposal via getProposal, ensuring a fresh read
     return this.getProposal(proposalId)
   }
+
   async getProposal(id: string): Promise<CodeProposal | null> {
     type ProposalRow = {
       id: string
@@ -254,23 +312,24 @@ export abstract class ProposalEngine {
     }
     return mapped
   }
+
   async listProposals(filter?: Record<string, unknown>): Promise<CodeProposal[]> {
     const hasFilter = !!(filter && Object.keys(filter).length > 0)
-  type DbLike = {
+    type DbLike = {
       findPending?: () => Promise<unknown[]>
       queryAll?: () => Promise<unknown[]>
       findByStatus?: (status: string) => Promise<unknown[]>
     }
     const db = this.db as unknown as DbLike
 
-  let rows: unknown[] = []
+    let rows: unknown[] = []
     if (!hasFilter) {
       if (typeof db.findPending === 'function') {
         rows = await db.findPending()
       } else if (typeof db.queryAll === 'function') {
         rows = await db.queryAll()
       }
-  } else {
+    } else {
       const status = (filter as { status?: string }).status
       if (typeof db.findByStatus === 'function' && status !== undefined) {
         rows = await db.findByStatus(status)
@@ -284,7 +343,7 @@ export abstract class ProposalEngine {
     if (!Array.isArray(rows)) {
       return []
     }
-  const mapper = (this as unknown as { getProposal: (row: { [key: string]: unknown }) => CodeProposal }).getProposal
-  return (rows as { [key: string]: unknown }[]).map((r) => mapper(r))
+    const mapper = (this as unknown as { getProposal: (row: { [key: string]: unknown }) => CodeProposal }).getProposal
+    return (rows as { [key: string]: unknown }[]).map((r) => mapper(r))
   }
 }

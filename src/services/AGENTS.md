@@ -21,6 +21,7 @@ Core business logic implemented as 12 services.
 | proposal_poll.ts | Democratic decision polling |
 | memory.ts | Persistent memory storage |
 | timePoll.ts | Time polling for event scheduling |
+| proposal-engine.ts | Code proposal system with GitHub Actions integration |
 
 ## WHERE TO LOOK
 | Task | Class |
