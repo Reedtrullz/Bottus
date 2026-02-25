@@ -1,4 +1,5 @@
 import { proposalDb } from '../db/index.js'
+import { v4 as uuidv4 } from 'uuid'
 
 export interface CodeProposal {
   id: string
@@ -26,7 +27,69 @@ export abstract class ProposalEngine {
     if (db) this.db = db
   }
 
-  abstract createProposal(input: CodeProposal): Promise<CodeProposal>
+  async createProposal(input: CodeProposal): Promise<CodeProposal> {
+    // Generate a new ID if not provided
+    const id = input.id ?? uuidv4()
+
+    // Derive a title if not explicitly provided
+    const derivedTitle = (input.title && input.title.trim().length > 0)
+      ? input.title
+      : (input.description?.split('\n')[0]?.trim() ?? 'Untitled Proposal')
+
+    // Prepare payload for DB insertion. Use camelCase as per plan description,
+    // while DB may map to snake_case internally.
+    const payload: Partial<CodeProposal> = {
+      id,
+      guildId: input.guildId,
+      proposerId: input.proposerId,
+      title: derivedTitle,
+      description: input.description,
+      type: input.type ?? 'feature',
+      status: input.status ?? 'pending',
+    }
+
+    // Persist to database
+    const created: any = await (this.db as any).create?.(payload)
+
+    // Attempt to map DB response back to CodeProposal format
+    if (created && typeof created === 'object') {
+      const mapped: CodeProposal = {
+        id: created.id ?? id,
+        guildId: created.guildId ?? created.guild_id ?? input.guildId,
+        proposerId: created.proposerId ?? created.proposer_id ?? input.proposerId,
+        title: created.title ?? derivedTitle,
+        description: created.description ?? input.description,
+        type: created.type ?? payload.type ?? 'feature',
+        status: created.status ?? payload.status ?? 'pending',
+        patchContent: created.patchContent ?? input.patchContent,
+        testResults: created.testResults ?? input.testResults,
+        githubPrUrl: created.githubPrUrl ?? input.githubPrUrl,
+        githubBranch: created.githubBranch ?? input.githubBranch,
+        approverId: created.approverId ?? input.approverId,
+        rejectedBy: created.rejectedBy,
+        rejectedReason: created.rejectedReason ?? input.rejectedReason,
+        createdAt: created.createdAt ?? new Date().toISOString(),
+        updatedAt: created.updatedAt ?? new Date().toISOString(),
+        appliedAt: created.appliedAt,
+      }
+      return mapped
+    }
+
+    // Fallback: try to fetch the newly created proposal by ID
+    const fetched = await this.getProposal(id)
+    if (fetched) return fetched
+
+    // Last resort: return a minimal CodeProposal instance
+    return {
+      id,
+      guildId: input.guildId,
+      proposerId: input.proposerId,
+      title: derivedTitle,
+      description: input.description,
+      type: input.type ?? 'feature',
+      status: input.status ?? 'pending',
+    } as CodeProposal
+  }
   abstract validateProposal(input: CodeProposal): boolean
   abstract approve(proposalId: string, approverId: string): Promise<CodeProposal>
   abstract reject(proposalId: string, rejectedBy: string, reason: string): Promise<CodeProposal>

@@ -225,7 +225,7 @@ npx biome check .
 #### 7.2 ProposalEngine Service
 - [x] Create `src/services/proposal-engine.ts`
 - [x] Implement `CodeProposal` interface
-- [ ] Implement `createProposal(userId, description)` — AI generates patch
+- [x] Implement `createProposal(userId, description)` — AI generates patch
 - [ ] Implement `validateProposal(proposalId)` — trigger GitHub Actions
 - [ ] Implement `approve(proposalId, approverId)` — super-admin approval
 - [ ] Implement `reject(proposalId, rejecterId, reason)` — rejection with reason
