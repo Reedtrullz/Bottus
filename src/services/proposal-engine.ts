@@ -30,6 +30,48 @@ export abstract class ProposalEngine {
   abstract validateProposal(input: CodeProposal): boolean
   abstract approve(proposalId: string, approverId: string): Promise<CodeProposal>
   abstract reject(proposalId: string, rejectedBy: string, reason: string): Promise<CodeProposal>
-  abstract getProposal(id: string): Promise<CodeProposal | null>
-  abstract listProposals(filter?: Record<string, any>): Promise<CodeProposal[]>
+  async getProposal(id: string): Promise<CodeProposal | null> {
+    type ProposalRow = {
+      id: string
+      guild_id: string
+      proposer_id: string
+      title: string
+      description: string
+      type: string
+      status: string
+      patch_content?: string
+      test_results?: string
+      github_pr_url?: string
+      github_branch?: string
+      approver_id?: string
+      rejected_by?: string
+      rejected_reason?: string
+      created_at?: string
+      updated_at?: string
+      applied_at?: string
+    }
+    const row = await (this.db as unknown as { queryOne: (arg: { id: string }) => Promise<ProposalRow | null> }).queryOne({ id })
+    if (!row) return null
+    const mapped: CodeProposal = {
+      id: row.id,
+      guildId: row.guild_id,
+      proposerId: row.proposer_id,
+      title: row.title,
+      description: row.description,
+      type: row.type,
+      status: row.status,
+      patchContent: row.patch_content,
+      testResults: row.test_results,
+      githubPrUrl: row.github_pr_url,
+      githubBranch: row.github_branch,
+      approverId: row.approver_id,
+      rejectedBy: row.rejected_by,
+      rejectedReason: row.rejected_reason,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      appliedAt: row.applied_at,
+    }
+    return mapped
+  }
+  abstract listProposals(filter?: Record<string, unknown>): Promise<CodeProposal[]>
 }

@@ -229,7 +229,8 @@ npx biome check .
 - [ ] Implement `validateProposal(proposalId)` — trigger GitHub Actions
 - [ ] Implement `approve(proposalId, approverId)` — super-admin approval
 - [ ] Implement `reject(proposalId, rejecterId, reason)` — rejection with reason
-- [ ] Implement `getProposal(id)` — fetch proposal
+- [x] Implement `getProposal(id)` — fetch proposal
+- [ ] Implement `listProposals(status?)` — list by status
 - [ ] Implement `listProposals(status?)` — list by status
 - [ ] Integrate with existing `ConfirmationService`
 - [ ] Integrate with existing `PermissionService`
