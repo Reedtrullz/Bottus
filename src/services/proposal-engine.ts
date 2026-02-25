@@ -91,7 +91,28 @@ export abstract class ProposalEngine {
     } as CodeProposal
   }
   abstract validateProposal(input: CodeProposal): boolean
-  abstract approve(proposalId: string, approverId: string): Promise<CodeProposal>
+  async approve(proposalId: string, approverId: string): Promise<CodeProposal | null> {
+    // Load the existing proposal
+    const existing = await this.getProposal(proposalId)
+    if (!existing) {
+      // If the proposal does not exist, return null as per spec
+      return null
+    }
+
+    // Prepare update payload in DB-friendly (snake_case) form
+    const payload = {
+      id: proposalId,
+      status: 'approved',
+      approver_id: approverId,
+      updatedAt: new Date().toISOString(),
+    }
+
+    // Persist the update
+    await (this.db as any).update?.(payload)
+
+    // Return the freshly updated proposal
+    return this.getProposal(proposalId)
+  }
   abstract reject(proposalId: string, rejectedBy: string, reason: string): Promise<CodeProposal>
   async getProposal(id: string): Promise<CodeProposal | null> {
     type ProposalRow = {
