@@ -1,0 +1,5 @@
+- Created src/services/proposal-engine.ts with CodeProposal interface and ProposalEngine skeleton.
+- Fields mapped to DB: id, guildId, proposerId, title, description, type, status, patchContent, testResults, githubPrUrl, githubBranch, approverId, rejectedBy, rejectedReason, createdAt, updatedAt, appliedAt.
+- Import strategy: named import { proposalDb } from '../db/index.js'
+- Skeleton: abstract methods createProposal, validateProposal, approve, reject, getProposal, listProposals with appropriate signatures; no concrete implementations yet.
+- Lint/build notes: lsp_diagnostics reported an any usage; corrected by using filter?: Record<string, any>; build passes (tsc).

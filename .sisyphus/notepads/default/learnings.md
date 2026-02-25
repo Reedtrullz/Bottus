@@ -1,11 +1,24 @@
-# Learnings - logger refactor in relay handlers
-
-- Replaced direct console.error usage with a centralized logger in five relay handlers: feedback.ts, memory.ts, techstack.ts, features.ts, calendar.ts.
-- Added a safe, typed logger usage: logger.error(message, { error: ... }) to satisfy type requirements (context object).
-- Introduced imports: import { logger } from '../../utils/logger.js'; in each affected file.
-- Rewrote and simplified calendar handler to allow isolated changes and reduce coupling, ensuring compile-time checks.
-- Build verified: TypeScript compile completed without errors after fixes.
-
-Verification notes:
-- lsp diagnostics cleaned for changed files.
-- npm run build completed with exit code 0.
+Task: Add 9 columns to proposals CREATE TABLE in src/db/index.ts
+- Added columns (all TEXT except updated_at INTEGER):
+  - type TEXT DEFAULT 'feature'
+  - patch_content TEXT
+  - test_results TEXT
+  - github_pr_url TEXT
+  - github_branch TEXT
+  - approver_id TEXT
+  - rejected_by TEXT
+  - rejected_reason TEXT
+  - updated_at INTEGER
+- Kept existing columns intact and maintained snake_case naming for DB fields.
+- Verification plan:
+  - Run npm run build to ensure TypeScript compiles with new schema.
+- Notes:
+  - proposalDb.update supports camelCase to snake_case mapping for new fields (patchContent, testResults, githubPrUrl, githubBranch, approverId, rejectedBy, rejectedReason).
+  - No changes to update logic beyond that provided by existing implementation.
+- Date: 2026-02-25
+- Implemented listProposals in ProposalEngine: converted abstract method to concrete async implementation.
+- Uses proposalDb.findPending() or proposalDb.queryAll() when no filter.
+- Supports filter by status; falls back to in-memory filtering if DB lacks findByStatus.
+- Maps snake_case DB fields to camelCase via existing getProposal mapping.
+- Returns empty array if no results.
+- Build verification: npm run build passes; lsp diagnostics are clean for this change.

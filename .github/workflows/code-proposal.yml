@@ -1,0 +1,82 @@
+name: Code Proposal Workflow
+
+on:
+  workflow_dispatch:
+    inputs:
+      proposal_id:
+        description: 'Proposal identifier'
+        required: true
+        type: string
+      patch_content:
+        description: 'Base64-encoded patch content'
+        required: true
+        type: string
+      action:
+        description: 'Action to perform: validate or apply'
+        required: true
+        type: string
+
+jobs:
+  validate:
+    name: Validate patch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Decode patch
+        run: |
+          mkdir -p patches
+          echo "${{ github.event.inputs.patch_content }}" | base64 -d > patches/patch.diff
+          ls -l patches
+      - name: Validate patch with git apply
+        run: git apply --check patches/patch.diff
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Run tests
+        run: npm test
+      - name: Set test result
+        id: test
+        run: |
+          echo "tests_passed=true" >> $GITHUB_OUTPUT
+        shell: bash
+  apply:
+    name: Apply patch
+    needs: validate
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.action == 'apply' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Decode patch
+        run: |
+          mkdir -p patches
+          echo "${{ github.event.inputs.patch_content }}" | base64 -d > patches/patch.diff
+      - name: Prepare patch branch
+        run: |
+          BRANCH="proposal/${{ github.event.inputs.proposal_id }}"
+          git checkout -b "$BRANCH"
+      - name: Apply patch
+        run: git apply patches/patch.diff
+      - name: Commit patch
+        run: |
+          git add -A
+          git commit -m "Proposal: ${{ github.event.inputs.proposal_id }}"
+      - name: Push branch
+        run: git push -u origin "proposal/${{ github.event.inputs.proposal_id }}"
+      - name: Install GitHub CLI
+        run: |
+          sudo apt-get update && sudo apt-get install -y gh
+      - name: Create Pull Request
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh auth status || true
+          gh pr create --title "Code Proposal: ${{ github.event.inputs.proposal_id }}" --body "Automated code proposal patch" --head "proposal/${{ github.event.inputs.proposal_id }}" --base main
