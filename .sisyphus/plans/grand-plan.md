@@ -246,6 +246,11 @@ npx biome check .
 - [ ] Integrate with existing `PermissionService`
 
 #### 7.3 GitHub Actions Workflow
+- [x] Create `.github/workflows/code-proposal.yml`
+- [x] Implement `workflow_dispatch` trigger
+- [x] Implement `validate` job: git apply --check + npm test
+- [x] Implement `apply` job: create branch + apply patch + open PR
+- [x] Configure GitHub token permissions for PR creation
 - [ ] Create `.github/workflows/code-proposal.yml`
 - [ ] Implement `workflow_dispatch` trigger
 - [ ] Implement `validate` job: git apply --check + npm test
