@@ -26,6 +26,11 @@ export abstract class ProposalEngine {
   constructor(db?: typeof proposalDb) {
     if (db) this.db = db
   }
+  // Audit logging for proposal actions (create, approve, reject, validate)
+  public logAudit(action: string, proposalId: string, userId: string, details?: string): void {
+    const timestamp = new Date().toISOString()
+    console.log(`[AUDIT] ${timestamp} | ${action} | proposal=${proposalId} | user=${userId} | ${details ?? ''}`)
+  }
 
   async createProposal(input: CodeProposal): Promise<CodeProposal> {
     // Generate a new ID if not provided
