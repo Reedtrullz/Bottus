@@ -258,6 +258,10 @@ npx biome check .
 - [ ] Configure GitHub token permissions for PR creation
 
 #### 7.4 Security & Integration
+- [x] Add patch scope policy (only `src/` allowed) - implemented in ProposalEngine
+- [ ] Add prompt injection guards for AI code generation
+- [ ] Add audit logging for all proposal actions
+- [ ] Integrate with Discord confirmation flow
 - [ ] Add patch scope policy (only `src/` allowed)
 - [ ] Add prompt injection guards for AI code generation
 - [ ] Add audit logging for all proposal actions
