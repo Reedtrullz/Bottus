@@ -131,6 +131,30 @@ Requires: Node.js 18+, Ollama running locally
 
 ## Documentation
 
+### Getting Started
+- [Environment Variables](docs/env-variables.md) - All configuration options
+- [Development Setup](docs/development-setup.md) - Local development guide
+
+### Features
+- [Calendar Skill Guide](docs/calendar-skill.md) - Calendar functionality
+- [Skills System](docs/skills-system.md) - Modular skill architecture
+- [Plan Router](docs/plan-router.md) - Action routing logic
+
+### Operations
+- [Troubleshooting](docs/troubleshooting.md) - Common issues and solutions
+- [Deployment](docs/deployment.md) - Production deployment guide
+- [Self-Healing](docs/self-healing.md) - Error recovery system
+- [Health Monitoring](docs/health-monitoring.md) - Service health tracking
+
+### Contributing
+- [Contributing Guide](CONTRIBUTING.md) - How to contribute
+- [Testing](docs/testing.md) - Testing strategy and patterns
+- [Hotspot Onboarding](docs/hotspot-onboarding.md) - Working with complex code
+
+### Reference
+- [CI/CD](.github/workflows/ci.yml)
+- [Code Proposal System](.github/workflows/code-proposal.yml)
+
 - [Calendar Skill Guide](docs/calendar-skill.md)
 - [Discord Selfbot Setup](docs/discord-selfbot-setup.md)
 - [CI/CD](.github/workflows/ci.yml)
