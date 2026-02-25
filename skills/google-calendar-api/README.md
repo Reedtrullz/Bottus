@@ -19,9 +19,8 @@ MATON_CONNECTION_ID=<connection_id>
 ```
 
 ### Connected Account
-- **Email**: inebotten@gmail.com
 - **Status**: Active
-- **Connection ID**: 62ca6f8d-7264-4abb-a0c1-9091b360191f
+- **Connection ID**: (stored in .env file)
 
 ## How It Works
 
@@ -64,8 +63,8 @@ cron.add(action="add", at="2026-02-26T10:00:00", message="Meeting")
 ```python
 import urllib.request, json, datetime
 
-api_key = "IXhfQep8kQnuqgkdsAu3NnwUvtjAjwcE_sTd2tNlAk61dvRjfMYy4bwpfz3lR0tIYshpcQHDMGt7gd4wir-nh9ZRERc4-ZZxdzY"
-conn_id = "62ca6f8d-7264-4abb-a0c1-9091b360191f"
+api_key = "YOUR_API_KEY"
+conn_id = "YOUR_CONNECTION_ID"
 
 start = datetime.datetime(2026, 2, 26, 10, 0)
 end = start + datetime.timedelta(minutes=30)

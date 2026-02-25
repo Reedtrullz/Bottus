@@ -26,7 +26,7 @@ Create the same event in Google Calendar using the Maton API (credentials in `sk
 
 ## Google Calendar Integration
 
-- **Connected account**: inebotten@gmail.com
+- **Connected account**: (see .env file)
 - **Credentials**: `/home/reed/.nanobot/workspace/skills/google-calendar-api/.env`
 - **Documentation**: `skills/google-calendar-api/README.md`
 
