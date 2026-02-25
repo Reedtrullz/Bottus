@@ -223,6 +223,16 @@ npx biome check .
 - [ ] Add `update` method to `proposalDb` object
 
 #### 7.2 ProposalEngine Service
+- [x] Create `src/services/proposal-engine.ts`
+- [x] Implement `CodeProposal` interface
+- [ ] Implement `createProposal(userId, description)` — AI generates patch
+- [ ] Implement `validateProposal(proposalId)` — trigger GitHub Actions
+- [ ] Implement `approve(proposalId, approverId)` — super-admin approval
+- [ ] Implement `reject(proposalId, rejecterId, reason)` — rejection with reason
+- [ ] Implement `getProposal(id)` — fetch proposal
+- [ ] Implement `listProposals(status?)` — list by status
+- [ ] Integrate with existing `ConfirmationService`
+- [ ] Integrate with existing `PermissionService`
 - [ ] Create `src/services/proposal-engine.ts`
 - [ ] Implement `CodeProposal` interface
 - [ ] Implement `createProposal(userId, description)` — AI generates patch
