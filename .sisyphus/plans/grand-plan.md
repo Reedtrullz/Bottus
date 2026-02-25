@@ -197,6 +197,17 @@ npx biome check .
 *Enable users to propose code changes via Discord with AI-generated patches and super-admin approval*
 
 #### 7.1 Database Schema Extension
+- [x] Add columns to `proposals` table:
+  - `type TEXT DEFAULT 'feature'` — distinguish feature/fix/code
+  - `patch_content TEXT` — unified diff
+  - `test_results TEXT` — JSON of test output
+  - `github_pr_url TEXT` — link to PR
+  - `github_branch TEXT` — branch name
+  - `approver_id TEXT` — who approved
+  - `rejected_by TEXT` — who rejected
+  - `rejected_reason TEXT` — rejection reason
+  - `updated_at INTEGER` — last update timestamp
+- [x] Add `update` method to `proposalDb` object
 - [x] Add `update` method to `proposalDb` object
 - [ ] Add columns to `proposals` table:
 - [ ] Add columns to `proposals` table:

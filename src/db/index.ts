@@ -107,7 +107,16 @@ export async function initializeDatabase() {
       status TEXT DEFAULT 'pending',
       approvals TEXT DEFAULT '[]',
       created_at INTEGER DEFAULT (strftime('%s', 'now')),
-      applied_at INTEGER
+      applied_at INTEGER,
+      type TEXT DEFAULT 'feature',
+      patch_content TEXT,
+      test_results TEXT,
+      github_pr_url TEXT,
+      github_branch TEXT,
+      approver_id TEXT,
+      rejected_by TEXT,
+      rejected_reason TEXT,
+      updated_at INTEGER
     )
   `);
   
