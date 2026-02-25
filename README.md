@@ -134,6 +134,11 @@ Requires: Node.js 18+, Ollama running locally
 - [Calendar Skill Guide](docs/calendar-skill.md)
 - [Discord Selfbot Setup](docs/discord-selfbot-setup.md)
 - [CI/CD](.github/workflows/ci.yml)
+- [Code Proposal System](.github/workflows/code-proposal.yml)
+
+- [Calendar Skill Guide](docs/calendar-skill.md)
+- [Discord Selfbot Setup](docs/discord-selfbot-setup.md)
+- [CI/CD](.github/workflows/ci.yml)
 - [Discord Selfbot Setup](docs/discord-selfbot-setup.md)
 
 ## License
