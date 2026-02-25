@@ -90,7 +90,61 @@ export abstract class ProposalEngine {
       status: input.status ?? 'pending',
     } as CodeProposal
   }
-  abstract validateProposal(input: CodeProposal): boolean
+  async validateProposal(input: CodeProposal): Promise<boolean> {
+    type InputLike = { id?: string; proposal_id?: string; proposalId?: string };
+    const inputLike = input as unknown as InputLike;
+    const proposalId = inputLike.id ?? inputLike.proposal_id ?? inputLike.proposalId ?? '';
+    if (!proposalId) return false;
+    const proposal = await this.getProposal(proposalId);
+    if (!proposal) return false;
+    type ProposalLike = { patch_content?: string; status?: string };
+    const proposalLike = proposal as unknown as ProposalLike;
+    const patchContentRaw = proposalLike.patch_content ?? '';
+    const patchContentBase64 = typeof Buffer !== 'undefined'
+      ? Buffer.from(patchContentRaw, 'utf8').toString('base64')
+      : (globalThis as any).Buffer.from(patchContentRaw, 'utf8').toString('base64');
+    const githubToken = process.env.GITHUB_TOKEN || '';
+    const owner = 'Reedtrullz';
+    const repo = 'Bottus';
+    const url = `https://api.github.com/repos/${owner}/${repo}/actions/workflows/code-proposal.yml/dispatch`;
+    const body = {
+      ref: 'main',
+      inputs: {
+        proposal_id: proposalId,
+        patch_content: patchContentBase64,
+        action: 'validate'
+      },
+    };
+    let dispatched = false;
+    try {
+      const headers: { [key: string]: string } = {
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json',
+      };
+      if (githubToken) headers['Authorization'] = `Bearer ${githubToken}`;
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+      dispatched = resp?.ok ?? false;
+    } catch {
+      dispatched = false;
+    }
+    try {
+      if (typeof (this as any).updateProposalStatus === 'function') {
+        await (this as any).updateProposalStatus(proposalId, 'validating');
+      } else if (typeof proposalLike.status !== 'undefined') {
+        proposalLike.status = 'validating';
+        if (typeof (this as any).saveProposal === 'function') {
+          await (this as any).saveProposal(proposal);
+        }
+      }
+    } catch {
+      // ignore status update errors
+    }
+    return dispatched;
+  }
   async approve(proposalId: string, approverId: string): Promise<CodeProposal | null> {
     // Load the existing proposal
     const existing = await this.getProposal(proposalId)
@@ -129,7 +183,7 @@ export abstract class ProposalEngine {
     }
     // 3) Persist the update to the database
     await (this.db as any).update?.(payload)
-    // 4) Return the updated proposal
+    // 4) Return the updated proposal via getProposal, ensuring a fresh read
     return this.getProposal(proposalId)
   }
   async getProposal(id: string): Promise<CodeProposal | null> {
