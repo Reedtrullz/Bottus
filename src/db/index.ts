@@ -370,6 +370,29 @@ export const proposalDb = {
       [id, proposal.guildId || null, proposal.proposerId, proposal.title, proposal.description || null, 'pending']);
     return id;
   },
+  update: (id: string, updates: Partial<{title: string, description: string, status: string, patchContent: string, testResults: string, githubPrUrl: string, githubBranch: string, approverId: string, rejectedBy: string, rejectedReason: string}>) => {
+    if (!updates || Object.keys(updates).length === 0) return false;
+    const fields: string[] = [];
+    const values: any[] = [];
+
+    if (updates.title !== undefined) { fields.push('title = ?'); values.push(updates.title); }
+    if (updates.description !== undefined) { fields.push('description = ?'); values.push(updates.description); }
+    if (updates.status !== undefined) { fields.push('status = ?'); values.push(updates.status); }
+    // Map camelCase input to snake_case DB columns
+    if (updates.patchContent !== undefined) { fields.push('patch_content = ?'); values.push(updates.patchContent); }
+    if (updates.testResults !== undefined) { fields.push('test_results = ?'); values.push(updates.testResults); }
+    if (updates.githubPrUrl !== undefined) { fields.push('github_pr_url = ?'); values.push(updates.githubPrUrl); }
+    if (updates.githubBranch !== undefined) { fields.push('github_branch = ?'); values.push(updates.githubBranch); }
+    if (updates.approverId !== undefined) { fields.push('approver_id = ?'); values.push(updates.approverId); }
+    if (updates.rejectedBy !== undefined) { fields.push('rejected_by = ?'); values.push(updates.rejectedBy); }
+    if (updates.rejectedReason !== undefined) { fields.push('rejected_reason = ?'); values.push(updates.rejectedReason); }
+
+    if (fields.length === 0) return false;
+
+    const sql = `UPDATE proposals SET ${fields.join(', ')} WHERE id = ?`;
+    run(sql, [...values, id]);
+    return true;
+  },
   
   addApproval: (id: string, approverId: string) => {
     const proposal = queryOne('SELECT * FROM proposals WHERE id = ?', [id]);

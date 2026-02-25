@@ -190,7 +190,81 @@ npx biome check .
 
 ---
 
+---
+
+### Phase 7: Self-Modification System
+
+*Enable users to propose code changes via Discord with AI-generated patches and super-admin approval*
+
+#### 7.1 Database Schema Extension
+- [x] Add `update` method to `proposalDb` object
+- [ ] Add columns to `proposals` table:
+- [ ] Add columns to `proposals` table:
+  - `type TEXT DEFAULT 'feature'` — distinguish feature/fix/code
+  - `patch_content TEXT` — unified diff
+  - `test_results TEXT` — JSON of test output
+  - `github_pr_url TEXT` — link to PR
+  - `github_branch TEXT` — branch name
+  - `approver_id TEXT` — who approved
+  - `rejected_by TEXT` — who rejected
+  - `rejected_reason TEXT` — rejection reason
+  - `updated_at INTEGER` — last update timestamp
+- [ ] Add `update` method to `proposalDb` object
+
+#### 7.2 ProposalEngine Service
+- [ ] Create `src/services/proposal-engine.ts`
+- [ ] Implement `CodeProposal` interface
+- [ ] Implement `createProposal(userId, description)` — AI generates patch
+- [ ] Implement `validateProposal(proposalId)` — trigger GitHub Actions
+- [ ] Implement `approve(proposalId, approverId)` — super-admin approval
+- [ ] Implement `reject(proposalId, rejecterId, reason)` — rejection with reason
+- [ ] Implement `getProposal(id)` — fetch proposal
+- [ ] Implement `listProposals(status?)` — list by status
+- [ ] Integrate with existing `ConfirmationService`
+- [ ] Integrate with existing `PermissionService`
+
+#### 7.3 GitHub Actions Workflow
+- [ ] Create `.github/workflows/code-proposal.yml`
+- [ ] Implement `workflow_dispatch` trigger
+- [ ] Implement `validate` job: git apply --check + npm test
+- [ ] Implement `apply` job: create branch + apply patch + open PR
+- [ ] Configure GitHub token permissions for PR creation
+
+#### 7.4 Security & Integration
+- [ ] Add patch scope policy (only `src/` allowed)
+- [ ] Add prompt injection guards for AI code generation
+- [ ] Add audit logging for all proposal actions
+- [ ] Integrate with Discord confirmation flow
+
+---
+
 ## Progress Summary
+
+**Total**: 39/55 + 14 = 53/69 tasks (77%)
+
+### Completed Phases
+- Phase 1: Tests ✅
+- Phase 2: Production Infrastructure ✅  
+- Phase 3: Skill System Consolidation ✅
+- Phase 4: Architecture (partial) ✅
+
+### Remaining
+- Phase 5: NanoBot Integration (7 tasks - lower priority)
+- Phase 6: Bottus v2 Features (2 tasks: react handler, async critique)
+- Phase 7: Self-Modification System (14 tasks)
+
+**Total**: 39/55 + 14 = 53/69 tasks (77%)
+
+### Completed Phases
+- Phase 1: Tests ✅
+- Phase 2: Production Infrastructure ✅  
+- Phase 3: Skill System Consolidation ✅
+- Phase 4: Architecture (partial) ✅
+
+### Remaining
+- Phase 5: NanoBot Integration (7 tasks - lower priority)
+- Phase 6: Bottus v2 Features (2 tasks: react handler, async critique)
+- Phase 7: Self-Modification System (14 tasks)
 
 **Total**: 39/55 tasks complete (71%)
 
@@ -201,5 +275,8 @@ npx biome check .
 - Phase 4: Architecture (partial) ✅
 
 ### Remaining
+- Phase 5: NanoBot Integration (7 tasks - lower priority)
+- Phase 6: Bottus v2 Features (2 tasks: react handler, async critique)
+- Phase 7: Self-Modification System (new)
 - Phase 5: NanoBot Integration (7 tasks - lower priority)
 - Phase 6: Bottus v2 Features (2 tasks: react handler, async critique)
