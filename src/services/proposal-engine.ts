@@ -22,6 +22,26 @@ export interface CodeProposal {
 }
 
 export abstract class ProposalEngine {
+  // Sanitizes prompts to prevent prompt injection attacks
+  sanitizePrompt(input: string): string {
+    if (!input) return "";
+    let sanitized = input;
+    // Common prompt injection patterns to strip or neutralize
+    const patterns: Array<RegExp> = [
+      /ignore prior(.*)instructions/gi,
+      /ignore previous instructions/gi,
+      /override system prompt/gi,
+      /you are now\\s+[^.\\n]+/gi,
+      /system:\\s*[^\\n\\r]*/gi,
+      /```system[\\s\\S]*?```/gi,
+      /system prompt/gi,
+      /please ignore.*instructions/gi
+    ];
+    for (const p of patterns) {
+      sanitized = sanitized.replace(p, "");
+    }
+    return sanitized.trim();
+  }
   protected db = proposalDb
   constructor(db?: typeof proposalDb) {
     if (db) this.db = db
