@@ -16,6 +16,24 @@ import { startNightlyCron } from './scripts/nightly-cron.js';
 
 config();
 
+function validateEnv(): void {
+  const missing: string[] = [];
+
+  // Main bot requires either user token or bot token
+  if (!process.env.DISCORD_USER_TOKEN && !process.env.DISCORD_BOT_TOKEN) {
+    missing.push('DISCORD_USER_TOKEN or DISCORD_BOT_TOKEN');
+  }
+
+  if (missing.length > 0) {
+    console.error('❌ Missing required environment variables:');
+    missing.forEach((v) => console.error(`   - ${v}`));
+    console.error('');
+    process.exit(1);
+  }
+}
+
+validateEnv();
+
 const token = (process.env.DISCORD_USER_TOKEN || process.env.DISCORD_BOT_TOKEN || '').trim();
 
 const consentManager = new ConsentManager();
@@ -297,10 +315,6 @@ process.on('SIGINT', async () => {
   process.exit(0);
 });
 
-if (!token) {
-  console.error('❌ No token found');
-  process.exit(1);
-}
 
 client.connect();
 

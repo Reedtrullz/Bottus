@@ -195,6 +195,21 @@ const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'mistral:7b-instruct';
 const RELAY_TIMEOUT_MS = parseInt(process.env.RELAY_TIMEOUT_MS || '60000', 10);
 const HISTORY_MAX_MESSAGES = parseInt(process.env.HISTORY_MAX_MESSAGES || '5', 10);
 
+function validateEnv(): void {
+  const missing: string[] = [];
+
+  if (!process.env.DISCORD_USER_TOKEN) {
+    missing.push('DISCORD_USER_TOKEN');
+  }
+
+  if (missing.length > 0) {
+    logger.error('❌ Missing required environment variables:', { context: 'Relay' });
+    missing.forEach((v) => logger.error(`   - ${v}`, { context: 'Relay' }));
+    process.exit(1);
+  }
+}
+
+validateEnv();
 
   async function main() {
   const VERSION = '1.0.0';
@@ -205,10 +220,8 @@ const HISTORY_MAX_MESSAGES = parseInt(process.env.HISTORY_MAX_MESSAGES || '5', 1
   logger.info('╚═══════════════════════════════════════════════════════╝');
   logger.info('[Relay] Starting Ine Ollama Relay...');
 
-  if (!DISCORD_TOKEN) {
-    logger.error('[Relay] ERROR:', { context: 'Relay', message: t('errors.missingToken') });
-    process.exit(1);
-  }
+
+
 
   logger.info('[Relay] Initializing database...', { context: 'Relay' });
   await initializeDatabase();
@@ -330,7 +343,7 @@ const HISTORY_MAX_MESSAGES = parseInt(process.env.HISTORY_MAX_MESSAGES || '5', 1
   // Set bot owner for permission checks
   const BOT_OWNER_ID = process.env.DISCORD_OWNER_ID || 'your-discord-user-id';
   permissionService.setOwner(BOT_OWNER_ID);
-  console.log(`[Relay] Bot owner set to: ${BOT_OWNER_ID}`);
+  logger.info(`Bot owner set to: ${BOT_OWNER_ID}`);
   // Check if message is relevant for memory context injection
   const needsMemoryContext = (msg: string): boolean => {
     const lower = msg.toLowerCase();
@@ -438,7 +451,7 @@ const HISTORY_MAX_MESSAGES = parseInt(process.env.HISTORY_MAX_MESSAGES || '5', 1
     } catch {
       // ignore logging/critique failures to avoid breaking bot flow
     }
-    console.log('[Relay] Extraction flow: response sent to Discord');
+    logger.info('Extraction flow: response sent to Discord');
   } catch (err: any) {
     const errorMessage = err instanceof Error ? err.message : 'Unknown error';
     const responseTimeMs = Date.now() - startTime;
@@ -450,7 +463,7 @@ const HISTORY_MAX_MESSAGES = parseInt(process.env.HISTORY_MAX_MESSAGES || '5', 1
 
 }; // end of handleExtractionFlow
 
-  console.log('[Relay] Checking Ollama connectivity...');
+  logger.info('Checking Ollama connectivity...');
   let healthy = false;
   try {
     healthy = await ollamaBreaker.execute(() => ollama.healthCheck());
@@ -459,9 +472,9 @@ const HISTORY_MAX_MESSAGES = parseInt(process.env.HISTORY_MAX_MESSAGES || '5', 1
     console.warn('[Relay] Ollama health check blocked by circuit breaker:', (err?.message ?? err));
   }
   if (!healthy) {
-    console.warn('[Relay] Ollama not reachable (circuit breaker or network). Will retry on messages.');
+    logger.warn('Ollama not reachable (circuit breaker or network). Will retry on messages.');
   } else {
-    console.log('[Relay] Ollama is reachable');
+    logger.info('Ollama is reachable');
   }
       // Readiness check for ComfyUI after Ollama health check
       // Also send Discord DM if READY_USER is set
@@ -469,13 +482,13 @@ const HISTORY_MAX_MESSAGES = parseInt(process.env.HISTORY_MAX_MESSAGES || '5', 1
       try {
         const comfyHealth = await fetch(`${COMFYUI_URL || 'http://localhost:8188'}/system_stats`);
         if (comfyHealth && comfyHealth.ok) {
-          console.log('[Relay] ComfyUI health: OK');
+          logger.info('ComfyUI health: OK');
           // Send readiness DM to user
           try {
             const sent = await discord.sendDMToUser(READY_USER, 
               '🎨 **Bildegenerering er klar!**\n\nJeg kan nå lage bilder for deg. Prøv f.eks:\n• "lag et bilde av et ekorn"\n• "tegn en koselig katt"\n• "generer et bilde av en strand i solnedgang"');
             if (sent) {
-              console.log(`[Relay] Sent readiness message to ${READY_USER}`);
+              logger.info(`Sent readiness message to ${READY_USER}`);
             }
           } catch (e) {
             console.warn('[Relay] Failed to send readiness DM:', e);
@@ -971,13 +984,13 @@ if (imageHandler.canHandle(userMessage, handlerCtx)) {
   }, 60 * 1000);
 
   process.on('SIGINT', () => {
-    console.log('[Relay] Received SIGINT - Shutting down gracefully...');
+    logger.info('Received SIGINT - Shutting down gracefully...');
     discord.disconnect();
     process.exit(0);
   });
   
   process.on('SIGTERM', () => {
-    console.log('[Relay] Received SIGTERM - Shutting down gracefully...');
+    logger.info('Received SIGTERM - Shutting down gracefully...');
     discord.disconnect();
     process.exit(0);
   });

@@ -2,6 +2,7 @@
 // Records all actions for security review and accountability
 
 import { Permission } from './permission.js';
+import { logger } from '../utils/logger.js';
 
 export enum AuditAction {
   ROLE_ASSIGNED = 'role:assigned',
@@ -53,7 +54,7 @@ export class AuditLogger {
       this.entries = this.entries.slice(-this.maxEntries);
     }
     const status = success ? '✓' : '✗';
-    console.log(`[AUDIT] ${status} ${action} by ${userId} in ${channelId}:`, details);
+    logger.info(`${status} ${action} by ${userId} in ${channelId}:`, details);
     return entry;
   }
 

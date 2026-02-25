@@ -41,52 +41,52 @@ Consolidated plan combining all outstanding work across 8 original plans:
 ### Phase 1: Code Quality & Tests
 
 #### 1.1 Bottus-v2-enhancements remaining
-- [ ] F1. Calendar persistence test
-- [ ] F2. Reminder notification test
-- [ ] F3. Image generation test
-- [ ] F4. Memory persistence test
+- [x] F1. Calendar persistence test
+- [x] F2. Reminder notification test
+- [x] F3. Image generation test
+- [x] F4. Memory persistence test
 
 #### 1.2 Skill Tests
-- [ ] Create tests for CalendarSkillV2
-- [ ] Create tests for MemorySkill
-- [ ] Create tests for ClarificationSkill
-- [ ] Create tests for DayDetailsSkill
-- [ ] Each skill has canHandle tests (positive + negative)
-- [ ] Each skill has handle tests for main functionality
+- [x] Create tests for CalendarSkillV2
+- [x] Create tests for MemorySkill
+- [x] Create tests for ClarificationSkill
+- [x] Create tests for DayDetailsSkill
+- [x] Each skill has canHandle tests (positive + negative)
+- [x] Each skill has handle tests for main functionality
 
 ---
 
 ### Phase 2: Production Infrastructure
 
 #### 2.1 Lint & Build
-- [ ] Fix lint warnings in calendar-skill-v2.ts
-- [ ] Fix lint warnings in memory-skill.ts
-- [ ] `npm run build` passes with 0 warnings
+- [x] Fix lint warnings in calendar-skill-v2.ts
+- [x] Fix lint warnings in memory-skill.ts
+- [x] `npm run build` passes with 0 warnings
 
 #### 2.2 Self-Healing & Reliability
-- [ ] Add self-healing wrapper to skill dispatch
-- [ ] Add fallback responses for each skill type
-- [ ] Add health checks before Ollama/ComfyUI calls
+- [x] Add self-healing wrapper to skill dispatch
+- [x] Add fallback responses for each skill type
+- [x] Add health checks before Ollama/ComfyUI calls
 
 #### 2.3 Production Features
-- [ ] Structured logging throughout relay
-- [ ] Environment validator on startup
-- [ ] Missing env vars cause startup failure with clear message
-- [ ] Failed skill returns graceful error to user
-- [ ] Startup banner with version
+- [x] Structured logging throughout relay
+- [x] Environment validator on startup
+- [x] Missing env vars cause startup failure with clear message
+- [x] Failed skill returns graceful error to user
+- [x] Startup banner with version
 
 ---
 
 ### Phase 3: Skill System Consolidation
 
 #### 3.1 Fix Broken Skills
-- [ ] MemorySkill uses MemoryService (not local Map)
-- [ ] MemorySkill has clarification flow (from MemoryHandler)
-- [ ] CalendarSkillV2 has week/month views
+- [x] MemorySkill uses MemoryService (not local Map)
+- [x] MemorySkill has clarification flow (from MemoryHandler)
+- [x] CalendarSkillV2 has week/month views
 
 #### 3.2 Missing Skills
-- [ ] DayDetailsSkill exists (migrated from DayDetailsHandler)
-- [ ] ClarificationSkill exists (migrated from ClarificationHandler)
+- [x] DayDetailsSkill exists (migrated from DayDetailsHandler)
+- [x] ClarificationSkill exists (migrated from ClarificationHandler)
 
 #### 3.3 Cleanup
 - [ ] Dead code removed (ImageSkill, CalendarSkill, ExtractionSkill)

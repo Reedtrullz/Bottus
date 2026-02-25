@@ -1,7 +1,10 @@
 {
   "active_plan": "/home/reed/Projects/Ine-Discord/.sisyphus/plans/grand-plan.md",
   "started_at": "2026-02-25T02:00:00.000Z",
-  "session_ids": ["ses_36d85e00affe7S80m3hgpQ6Hx5"],
+  "session_ids": [
+    "ses_36d85e00affe7S80m3hgpQ6Hx5",
+    "ses_36d66e30bffeIWL0EaAoVMnhik"
+  ],
   "plan_name": "grand-plan",
   "agent": "atlas",
   "status": "IN_PROGRESS"
