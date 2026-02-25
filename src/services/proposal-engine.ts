@@ -113,7 +113,25 @@ export abstract class ProposalEngine {
     // Return the freshly updated proposal
     return this.getProposal(proposalId)
   }
-  abstract reject(proposalId: string, rejectedBy: string, reason: string): Promise<CodeProposal>
+  async reject(proposalId: string, rejectedBy: string, reason: string): Promise<CodeProposal | null> {
+    // 1) Check existence of the proposal
+    const existing = await this.getProposal(proposalId)
+    if (!existing) {
+      return null
+    }
+    // 2) Prepare update payload (snake_case for DB) and timestamp
+    const payload = {
+      id: proposalId,
+      status: 'rejected',
+      rejected_by: rejectedBy,
+      rejected_reason: reason,
+      updatedAt: new Date().toISOString(),
+    }
+    // 3) Persist the update to the database
+    await (this.db as any).update?.(payload)
+    // 4) Return the updated proposal
+    return this.getProposal(proposalId)
+  }
   async getProposal(id: string): Promise<CodeProposal | null> {
     type ProposalRow = {
       id: string
