@@ -1,0 +1,3 @@
+- Decision: Use existing logger in src/utils/logger.ts for all relay logging.
+- Rationale: Maintains consistency with project logging standards; avoids adding new dependencies.
+- Approach: Import logger with correct relative path per file location; replace console.* calls with appropriate logger methods; preserve message content.

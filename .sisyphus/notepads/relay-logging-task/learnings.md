@@ -1,0 +1,4 @@
+- Replaced all console.log/console.error/console.warn usages in relay module with the structured logger from src/utils/logger.ts.
+- Added imports: import { logger } from '../../utils/logger.js' (adjusted per file location) and used logger.info/logger.warn/logger.error accordingly.
+- Ensured log prefixes include module context and preserved original message content.
+- Verified with npm run build and npm test; build passes and tests pass.

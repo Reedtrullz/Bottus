@@ -1,12 +1,9 @@
 # AGENTS.md - Project Knowledge Base
 
-**Generated:** 2026-02-25  
+**Generated:** 2026-02-24  
 **Commit:** 55a6007  
 **Branch:** main  
 **Language:** TypeScript (ESM) | **Node:** >=18.0.0
-
-## ACTIVE PLAN
-- See `.sisyphus/plans/grand-plan.md` for current work
 
 ---
 
@@ -132,13 +129,6 @@ const result = await selfHealer.executeWithHealing(
 );
 ```
 
-### Health Monitor
-```typescript
-import { healthMonitor } from './services/health-monitor.js';
-const report = await healthMonitor.getOverallHealth();
-// report.overall: 'healthy' | 'degraded' | 'unhealthy'
-```
-
 ---
 
 ## PATTERNS
@@ -158,17 +148,6 @@ export interface Skill {
 import { skillRegistry } from './skills/registry.js';
 skillRegistry.register(new CalendarSkillV2(calendarService));
 const handler = skillRegistry.findHandler(message, ctx);
-```
-
-### Database (sql.js)
-```typescript
-// Always check DB before operations
-async function createEvent(...): Promise<CalendarEvent> {
-  if (!this.db) await this.initialize();
-}
-
-// Parameterized queries
-this.db!.run(`INSERT INTO events (id) VALUES (?)`, [event.id]);
 ```
 
 ---
@@ -194,10 +173,9 @@ this.db!.run(`INSERT INTO events (id) VALUES (?)`, [event.id]);
 | Skills | src/relay/skills/*.ts |
 | Services | src/services/*.ts |
 | Self-healing | src/services/{error-classifier,health-monitor,self-healer}.ts |
+| Health endpoint | src/relay/health.ts (port 3001) |
 | Tests | tests/**/*.test.ts |
 | Database | src/db/index.ts |
-| Scripts | scripts/*.js, scripts/*.py |
-| Docs | docs/*.md |
 
 ---
 

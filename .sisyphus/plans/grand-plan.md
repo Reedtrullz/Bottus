@@ -1,0 +1,183 @@
+# Grand Bottus Work Plan
+
+**Generated:** 2026-02-25  
+**Status:** IN PROGRESS
+
+---
+
+## TL;DR
+
+Consolidated plan combining all outstanding work across 8 original plans:
+- bottus-v2-enhancements (remaining)
+- production-readiness
+- skills-consolidation
+- nanobot-migration
+- master-work-plan
+- nanobot-discord-selfbot-overhaul
+- skill-tests-plan
+- bottus-v2
+
+**Goal:** Production-ready Discord bot with full skill system, self-healing, and robust architecture.
+
+---
+
+## Completed Work ✅
+
+### Already Done (from previous plans)
+- Group DM messaging
+- Calendar CRUD with persistence
+- Image generation
+- Memory persistence
+- Health endpoint (port 3001)
+- Rate limiting
+- Graceful shutdown
+- Security guardrails (permissions, audit logging)
+- Calendar skill permission checks
+
+---
+
+## Remaining Work ⏳
+
+### Phase 1: Code Quality & Tests
+
+#### 1.1 Bottus-v2-enhancements remaining
+- [ ] F1. Calendar persistence test
+- [ ] F2. Reminder notification test
+- [ ] F3. Image generation test
+- [ ] F4. Memory persistence test
+
+#### 1.2 Skill Tests
+- [ ] Create tests for CalendarSkillV2
+- [ ] Create tests for MemorySkill
+- [ ] Create tests for ClarificationSkill
+- [ ] Create tests for DayDetailsSkill
+- [ ] Each skill has canHandle tests (positive + negative)
+- [ ] Each skill has handle tests for main functionality
+
+---
+
+### Phase 2: Production Infrastructure
+
+#### 2.1 Lint & Build
+- [ ] Fix lint warnings in calendar-skill-v2.ts
+- [ ] Fix lint warnings in memory-skill.ts
+- [ ] `npm run build` passes with 0 warnings
+
+#### 2.2 Self-Healing & Reliability
+- [ ] Add self-healing wrapper to skill dispatch
+- [ ] Add fallback responses for each skill type
+- [ ] Add health checks before Ollama/ComfyUI calls
+
+#### 2.3 Production Features
+- [ ] Structured logging throughout relay
+- [ ] Environment validator on startup
+- [ ] Missing env vars cause startup failure with clear message
+- [ ] Failed skill returns graceful error to user
+- [ ] Startup banner with version
+
+---
+
+### Phase 3: Skill System Consolidation
+
+#### 3.1 Fix Broken Skills
+- [ ] MemorySkill uses MemoryService (not local Map)
+- [ ] MemorySkill has clarification flow (from MemoryHandler)
+- [ ] CalendarSkillV2 has week/month views
+
+#### 3.2 Missing Skills
+- [ ] DayDetailsSkill exists (migrated from DayDetailsHandler)
+- [ ] ClarificationSkill exists (migrated from ClarificationHandler)
+
+#### 3.3 Cleanup
+- [ ] Dead code removed (ImageSkill, CalendarSkill, ExtractionSkill)
+- [ ] Old handlers removed after skill migration
+- [ ] No duplicate image handling paths
+
+---
+
+### Phase 4: Architecture & Modularization
+
+#### 4.1 Modular Handlers
+- [ ] No monolithic functions >100 lines
+- [ ] Modular message handlers extracted
+
+#### 4.2 Unified Routing
+- [ ] Unified skill routing in place
+
+---
+
+### Phase 5: NanoBot Integration (Future)
+
+*Note: These require external NanoBot setup and may be lower priority*
+
+- [ ] Docker Setup in WSL2
+- [ ] Start Ollama + ComfyUI via docker-compose
+- [ ] NanoBot Installation
+- [ ] Configure NanoBot → Ollama Connection
+- [ ] Verify Bottus Selfbot Still Works
+- [ ] Test NanoBot → Ollama Communication
+- [ ] Full Bottus → NanoBot Integration Test
+
+---
+
+### Phase 6: Bottus v2 Features
+
+#### 6.1 Calendar Improvements
+- [ ] Recurring events work (weekly/monthly)
+- [ ] ICS export valid
+
+#### 6.2 Feedback System
+- [ ] React handler for emoji reactions on bot messages
+- [ ] Async non-blocking critique calls
+- [ ] Store feedback in interactions.db
+
+#### 6.3 Nightly & Scheduling
+- [ ] Nightly cron runs successfully
+- [ ] Preferences file updates
+
+#### 6.4 Documentation
+- [ ] All commands documented
+- [ ] Norwegian date parsing accurate
+- [ ] Bilingual strings work
+
+---
+
+## Execution Order
+
+```
+Week 1: Phase 1 (Tests) → Phase 2.1 (Lint)
+Week 2: Phase 2.2-2.3 (Self-healing, Production)
+Week 3: Phase 3 (Skills Consolidation)
+Week 4: Phase 4 (Architecture)
+```
+
+---
+
+## Verification
+
+Run these after each phase:
+```bash
+# Build
+npm run build
+
+# Tests
+npm test
+
+# Health check
+curl localhost:3001/health
+
+# Lint
+npx biome check .
+```
+
+---
+
+## Success Criteria
+
+- [ ] All tests pass (108+)
+- [ ] Build passes with 0 warnings
+- [ ] Health endpoint works
+- [ ] All skills tested
+- [ ] No monolithic functions >100 lines
+- [ ] Production features wired in
+- [ ] Skills consolidated and working

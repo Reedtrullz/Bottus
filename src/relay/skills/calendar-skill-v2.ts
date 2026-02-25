@@ -1,6 +1,7 @@
 import type { Skill, HandlerContext, SkillResponse } from './interfaces.js';
 import type { CalendarServiceV2 } from '../../services/calendar-v2.js';
 import { CalendarDisplayService } from '../../services/calendar-display.js';
+import { Permission } from './permission.js';
 
 export class CalendarSkillV2 implements Skill {
   readonly name = 'calendar-v2';
@@ -79,7 +80,7 @@ export class CalendarSkillV2 implements Skill {
     }
 
     if (lower.includes('delete') || lower.includes('remove') || lower.includes('slett')) {
-      return this.deleteEvent(message, channelId, userId);
+      return this.deleteEvent(message, channelId, userId, ctx);
     }
 
     const parsed = this.calendar.parseNaturalDate(message);
@@ -403,7 +404,15 @@ export class CalendarSkillV2 implements Skill {
     };
   }
 
-  private async deleteEvent(message: string, channelId: string, userId: string): Promise<SkillResponse> {
+  private async deleteEvent(message: string, channelId: string, userId: string, ctx?: HandlerContext): Promise<SkillResponse> {
+    // Permission check
+    if (ctx?.security) {
+      const hasPermission = ctx.security.permissionService.hasPermission(channelId, userId, Permission.DELETE_EVENT);
+      if (!hasPermission) {
+        ctx.security.auditLogger.logPermissionDenied(userId, channelId, Permission.DELETE_EVENT, 'deleteEvent');
+        return { handled: true, response: 'Du har ikke tillatelse til å slette arrangementer. Spør en admin om hjelp.' };
+      }
+    }
     const titleToDelete = message
       .replace(/delete|remove|slett/gi, '')
       .replace(/event|arrangement/gi, '')

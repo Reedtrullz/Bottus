@@ -1,0 +1,3 @@
+- Decision: Use lightweight wrapper to route console.* calls to existing logger for consistency, instead of a full refactor of all console statements.
+- Rationale: Quick win with minimal risk; preserves behavior while centralizing logging.
+- Alternatives considered: Full grep-and-replace refactor; exceeded context time and risk.

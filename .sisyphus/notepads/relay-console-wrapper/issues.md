@@ -1,0 +1,3 @@
+- Issue: Replaced ad-hoc console usage with a logger-based wrapper in two relay files. Challenge: patch format compatibility across files; solved by inserting wrapper after imports.
+- Status: Completed
+- Risk: Minimal; no runtime behavior changes beyond unified logging, potential minor syntax risk from wrapper insertion points.

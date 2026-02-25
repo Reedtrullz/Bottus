@@ -1,3 +1,13 @@
+import type { PermissionService } from './permission.js';
+import type { AuditLogger } from './audit-log.js';
+import type { ConfirmationService } from './confirmation.js';
+
+export interface SecurityContext {
+  permissionService: PermissionService;
+  auditLogger: AuditLogger;
+  confirmationService: ConfirmationService;
+}
+
 export interface HandlerContext {
   userId: string;
   channelId: string;
@@ -6,6 +16,7 @@ export interface HandlerContext {
   ollama?: any;
   extraction?: any;
   memory?: any;
+  security?: SecurityContext;
 }
 
 export interface SkillResponse {

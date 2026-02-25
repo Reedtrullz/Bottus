@@ -1,0 +1,2 @@
+- Issue encountered: Occasional TypeScript type errors when replacing logger calls (e.g., unknown type in error callbacks). Resolved by casting to any where necessary and by aligning import paths for logger based on file location.
+- Risk: Import path differences across nested directories required careful patching; future changes should maintain path consistency.

@@ -37,6 +37,7 @@ import { ToneService } from '../services/tone.js';
 import { MemoryService } from '../services/memory.js';
 import { toneDb } from '../db/index.js';
 import { FeedbackService } from '../services/feedback.js';
+import { permissionService, auditLogger, confirmationService } from './skills/index.js';
 
 // Norwegian month name -> 0-11 index helper
 function norskMonthNameToIndex(name: string): number | null {
@@ -326,7 +327,10 @@ const HISTORY_MAX_MESSAGES = parseInt(process.env.HISTORY_MAX_MESSAGES || '5', 1
   skillRegistry.register(new MemorySkill());
   skillRegistry.register(new ClarificationSkill());
   skillRegistry.register(new DayDetailsSkill());
-
+  // Set bot owner for permission checks
+  const BOT_OWNER_ID = process.env.DISCORD_OWNER_ID || 'your-discord-user-id';
+  permissionService.setOwner(BOT_OWNER_ID);
+  console.log(`[Relay] Bot owner set to: ${BOT_OWNER_ID}`);
   // Check if message is relevant for memory context injection
   const needsMemoryContext = (msg: string): boolean => {
     const lower = msg.toLowerCase();
@@ -549,7 +553,8 @@ if (helpHandler.canHandle(userMessage, handlerCtx)) {
 }
 
 // Unified skill routing using skillRegistry
-const skillCtx: SkillHandlerContext = { message: userMessage, userId, channelId, discord, extraction, memory };
+const securityCtx = { permissionService, auditLogger, confirmationService };
+const skillCtx: SkillHandlerContext = { message: userMessage, userId, channelId, discord, extraction, memory, security: securityCtx };
 const skill = skillRegistry.findHandler(userMessage, skillCtx);
 if (skill) {
   logger.info(`Skill matched: ${skill.name}`, { context: 'Relay' });
