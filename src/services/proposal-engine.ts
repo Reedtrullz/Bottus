@@ -73,5 +73,37 @@ export abstract class ProposalEngine {
     }
     return mapped
   }
-  abstract listProposals(filter?: Record<string, unknown>): Promise<CodeProposal[]>
+  async listProposals(filter?: Record<string, unknown>): Promise<CodeProposal[]> {
+    const hasFilter = !!(filter && Object.keys(filter).length > 0)
+  type DbLike = {
+      findPending?: () => Promise<unknown[]>
+      queryAll?: () => Promise<unknown[]>
+      findByStatus?: (status: string) => Promise<unknown[]>
+    }
+    const db = this.db as unknown as DbLike
+
+  let rows: unknown[] = []
+    if (!hasFilter) {
+      if (typeof db.findPending === 'function') {
+        rows = await db.findPending()
+      } else if (typeof db.queryAll === 'function') {
+        rows = await db.queryAll()
+      }
+  } else {
+      const status = (filter as { status?: string }).status
+      if (typeof db.findByStatus === 'function' && status !== undefined) {
+        rows = await db.findByStatus(status)
+      } else if (typeof db.queryAll === 'function') {
+        rows = await db.queryAll()
+        if (status !== undefined) {
+          rows = (rows as { status?: string }[]).filter((r) => r.status === status)
+        }
+      }
+    }
+    if (!Array.isArray(rows)) {
+      return []
+    }
+  const mapper = (this as unknown as { getProposal: (row: { [key: string]: unknown }) => CodeProposal }).getProposal
+  return (rows as { [key: string]: unknown }[]).map((r) => mapper(r))
+  }
 }

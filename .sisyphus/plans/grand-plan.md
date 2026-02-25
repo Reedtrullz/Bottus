@@ -230,7 +230,7 @@ npx biome check .
 - [ ] Implement `approve(proposalId, approverId)` — super-admin approval
 - [ ] Implement `reject(proposalId, rejecterId, reason)` — rejection with reason
 - [x] Implement `getProposal(id)` — fetch proposal
-- [ ] Implement `listProposals(status?)` — list by status
+- [x] Implement `listProposals(status?)` — list by status
 - [ ] Implement `listProposals(status?)` — list by status
 - [ ] Integrate with existing `ConfirmationService`
 - [ ] Integrate with existing `PermissionService`
