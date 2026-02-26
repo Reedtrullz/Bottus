@@ -76,7 +76,16 @@ Bottus runs in your **group DM** and uses a **local LLM** (Ollama) to have natur
 - Automatic retry with exponential backoff
 - Service health monitoring
 - Graceful degradation when services fail
-- Error classification and recovery strategies
+JN|- Error classification and recovery strategies
+
+PR|### 🔐 Role-Based Access Control
+
+BQ|- Channel-level permissions: member → contributor → admin → owner
+MM|- Role persistence in SQLite database
+RM|- Permission enforcement on calendar, proposals, skill installation
+MW|- Integrated with NanoBot via prompt context
+
+KB|### 🔌 Two Running Modes
 
 ### 🔌 Two Running Modes
 

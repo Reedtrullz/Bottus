@@ -14,6 +14,10 @@ Bottus integrates with external NanoBot configuration files from `~/.nanobot/wor
 Located at `~/.nanobot/workspace/USER.md`. Defines user preferences:
 
 ```markdown
+## Discord
+- **Username**: your Discord username
+- **Role**: (auto-filled by Bottus)
+
 ## Basic Information
 - **Name**: Your name
 - **Timezone**: Europe/Oslo
@@ -44,11 +48,11 @@ Your custom instructions here...
 - **Language**: Sets response language preference
 - **Timezone**: Used for event scheduling
 - **Communication Style**: Adjusts tone
-- **Discord role**: Automatically included in context
+- **Discord role**: Automatically included in context (see Permissions below)
 
 ## SOUL.md
 
-Located at `~/.nanobot/workspace/SOUL.md`. Defines bot personality:
+Located at `~/.nanobot/workspace/SOUL.md`. Defines bot personality and behavior:
 
 ```markdown
 # Soul
@@ -72,13 +76,23 @@ I am nanobot 🐈, a personal AI assistant.
 - Be clear and direct
 - Explain reasoning when helpful
 - Ask clarifying questions when needed
+
+## Permissions System
+
+Bottus provides your role in the user context:
+- `Discord role: owner` → full access
+- `Discord role: admin` → can manage permissions
+- `Discord role: member` → should propose changes
+
+Check role before installing skills, modifying system, etc.
 ```
 
 ## How It Works
 
 1. On startup, Bottus reads `~/.nanobot/workspace/USER.md` and `SOUL.md`
 2. Parses profile and persona into structured data
-3. Injects context into every LLM prompt:
+3. Adds user role from RBAC system
+4. Injects context into every LLM prompt:
 
 ```
 You are Ine 🐈, AI assistant. Personality: Helpful and friendly...
@@ -91,6 +105,46 @@ Timezone: Europe/Oslo
 
 (user message...)
 ```
+
+## Permissions Integration
+
+The RBAC system provides the user's role in the prompt context. NanoBot should:
+
+| Role in Context | Action |
+|----------------|--------|
+| `owner` | Perform directly (install skill, etc.) |
+| `admin` | Can modify permissions |
+| `member` / `contributor` | Create proposal instead |
+
+### Before Sensitive Actions
+
+NanoBot **must check the role** before:
+- Installing/removing skills
+- Modifying system config
+- Managing permissions
+
+If role is `member` or `contributor`, respond:
+> "I'll add this as a proposal for the group to vote on instead."
+
+### API (Optional)
+
+For direct verification:
+```
+GET http://localhost:3001/api/permissions/{userId}/{channelId}
+```
+
+Returns:
+```json
+{
+  "userId": "123456789",
+  "channelId": "987654321",
+  "role": "admin",
+  "isOwner": false,
+  "permissions": ["query:calendar", "create:event", ...]
+}
+```
+
+See [RBAC](./rbac.md) for full permission matrix.
 
 ## Cache
 

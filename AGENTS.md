@@ -1,7 +1,33 @@
-# PROJECT KNOWLEDGE BASE
+SY|**Generated:** 2026-02-26
+ZX|**Commit:** 86927d9
+MM|**Branch:** main
+
+ZJ|## OVERVIEW
+
+KP|AI Discord bot with local LLM (Ollama), image generation (ComfyUI), shared calendar, and role-based access control (RBAC). Two running modes: Relay Bot (selfbot) and NanoBot Gateway.
+
+HV|## STRUCTURE
+
+YM|```
+XB|./
+QH|├── src/                    # TypeScript source (100+ files)
+MT|│   ├── index.ts           # Main entry (Eris client)
+VH|│   ├── relay/             # Discord↔Ollama relay (selfbot)
+SM|│   │   ├── skills/        # Skill system (calendar, memory, permissions)
+PQ|│   │   └── handlers/      # Message handlers (role, help, image)
+XP|│   ├── services/          # 21 domain services
+SP|│   ├── gateway/           # Experimental skill dispatcher
+RQ|│   ├── db/                # SQLite via sql.js (incl. roles)
+BN|│   └── utils/             # Shared utilities
+XQ|├── tests/                 # Vitest test suite
+WK|├── docs/                  # Documentation
+QY|├── skills/                # External skill integrations
+KP|├── docker-compose.yml     # Ollama + ComfyUI + relay
+RM|└── package.json           # Node.js 18+, ES modules
+```
 
 **Generated:** 2026-02-26
-**Commit:** 139158a
+**Commit:** 11e9375
 **Branch:** main
 
 ## OVERVIEW
@@ -54,6 +80,31 @@ AI Discord bot with local LLM (Ollama), image generation (ComfyUI), and shared c
 - Class-based services with constructor DI
 - Norwegian/English bilingual commands
 - Timezone: Europe/Oslo hardcoded
+
+JW|
+## RBAC SYSTEM
+
+KP|Bottus has role-based access control for channel-level permissions:
+
+MH|- **Roles**: member → contributor → admin → owner
+WM|- **Storage**: SQLite `channel_user_roles` table
+BC|- **Enforcement**: Calendar skill, proposal engine, role commands, LLM prompts
+
+QW|Key files:
+- `src/relay/skills/permission.ts` - Permission service
+- `src/relay/handlers/role.ts` - Role management commands
+- `src/db/index.ts` - roleDb functions
+- `docs/rbac.md` - Full documentation
+
+## NANOBOT INTEGRATION
+
+BN|Bottus reads NanoBot config from `~/.nanobot/workspace/`:
+- `USER.md` - User profile (name, language, timezone, role)
+- `SOUL.md` - Bot persona and permission behavior
+
+WM|Role is injected into every LLM prompt via `[User Context]`.
+
+See `docs/nanobot-integration.md` for full guide.
 
 ## ANTI-PATTERNS
 
