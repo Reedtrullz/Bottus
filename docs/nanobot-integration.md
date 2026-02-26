@@ -1,5 +1,14 @@
 # NanoBot Integration
 
+Bottus is NanoBot's Discord interface — the ears that listen, the mouth that speaks, and the limbs that act.
+
+## The Relationship
+
+| Component | Role |
+|-----------|------|
+| **NanoBot** | Brain — decides what to do, remembers context, defines skills |
+| **Bottus** | Body — listens to Discord, executes actions, returns responses |
+
 Bottus integrates with external NanoBot configuration files from `~/.nanobot/workspace/`.
 
 ## Files Integrated
@@ -87,15 +96,42 @@ Bottus provides your role in the user context:
 Check role before installing skills, modifying system, etc.
 ```
 
+## Real-Time Context
+
+Bottus injects live status into every prompt so NanoBot knows what's currently possible:
+
+```
+[System Status]
+- Services: calendar ✓, images ✓, memory ✓
+- Online members: 4/5
+- Recent: event "Middag" created, 2 RSVPs
+
+[User Context]
+(from USER.md + role from RBAC)
+```
+
+This allows NanoBot to adapt its responses based on:
+
+- **Service availability**: Skip proposing image generation if ComfyUI is offline
+- **Chat activity**: Know recent events/actions in the conversation
+- **Member presence**: Understand who's available for scheduling
+
 ## How It Works
 
 1. On startup, Bottus reads `~/.nanobot/workspace/USER.md` and `SOUL.md`
 2. Parses profile and persona into structured data
 3. Adds user role from RBAC system
-4. Injects context into every LLM prompt:
+4. Injects live system status into every prompt
+5. Sends enhanced prompt to Ollama for response
+
+### Example Prompt
 
 ```
 You are Ine 🐈, AI assistant. Personality: Helpful and friendly...
+
+[System Status]
+- Services: calendar ✓, images ✓
+- Online members: 4/5
 
 [User Context]
 Discord role: member
@@ -119,21 +155,25 @@ The RBAC system provides the user's role in the prompt context. NanoBot should:
 ### Before Sensitive Actions
 
 NanoBot **must check the role** before:
+
 - Installing/removing skills
 - Modifying system config
 - Managing permissions
 
 If role is `member` or `contributor`, respond:
+
 > "I'll add this as a proposal for the group to vote on instead."
 
 ### API (Optional)
 
 For direct verification:
+
 ```
 GET http://localhost:3001/api/permissions/{userId}/{channelId}
 ```
 
 Returns:
+
 ```json
 {
   "userId": "123456789",

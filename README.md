@@ -3,7 +3,7 @@
 <div align="center">
 
 [![GitHub stars](https://img.shields.io/github/stars/Reedtrullz/Bottus)](https://github.com/Reedtrullz/Bottus/stargazers)
-[![GitHub license](https/github/license/Reed://img.shields.iotrullz/Bottus)](https://github.com/Reedtrullz/Bottus/blob/main/LICENSE)
+[![GitHub license](https://github/license/Reed://img.shields.iotrullz/Bottus)](https://github.com/Reedtrullz/Bottus/blob/main/LICENSE)
 [![Node.js](https://img.shields.io/node/v/18)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue)](https://www.typescriptlang.org)
 
@@ -14,6 +14,26 @@
 ---
 
 ## What is Bottus?
+
+**Bottus is NanoBot's Discord interface** — the ears that listen, the mouth that speaks, and the limbs that act in the real world.
+
+NanoBot provides the brain: it decides *what* to do, remembers context, and defines capabilities (skills). Bottus provides *how* to do it: receiving messages from Discord, executing actions, and returning responses.
+
+The skill system originates from NanoBot. Bottus implements a compatible dispatch layer that maps NanoBot skill decisions to actual service calls.
+
+### Real-Time Context
+
+Bottus injects live status into every prompt so NanoBot knows what's possible:
+
+```
+[System Status]
+- Services: calendar ✓, images ✓, memory ✓
+- Online members: 4/5
+- Recent: event "Middag" created, 2 RSVPs
+
+[User Context]
+(from USER.md + role from RBAC)
+```
 
 Bottus runs in your **group DM** and uses a **local LLM** (Ollama) to have natural conversations. No API keys, no cloud dependencies, no monthly bills—just you, your friends, and AI that actually understands context.
 
@@ -76,16 +96,14 @@ Bottus runs in your **group DM** and uses a **local LLM** (Ollama) to have natur
 - Automatic retry with exponential backoff
 - Service health monitoring
 - Graceful degradation when services fail
-JN|- Error classification and recovery strategies
+- Error classification and recovery strategies
 
-PR|### 🔐 Role-Based Access Control
+### 🔐 Role-Based Access Control
 
-BQ|- Channel-level permissions: member → contributor → admin → owner
-MM|- Role persistence in SQLite database
-RM|- Permission enforcement on calendar, proposals, skill installation
-MW|- Integrated with NanoBot via prompt context
-
-KB|### 🔌 Two Running Modes
+- Channel-level permissions: member → contributor → admin → owner
+- Role persistence in SQLite database
+- Permission enforcement on calendar, proposals, skill installation
+- Integrated with NanoBot via prompt context
 
 ### 🔌 Two Running Modes
 
@@ -199,24 +217,31 @@ docker-compose up -d
 ```
 ┌─────────────────────────────────────────────┐
 │            Discord Group DM                  │
+│            (ears: listening)                  │
 └─────────────┬───────────────────────────────┘
               │
 ┌─────────────▼───────────────────────────────┐
-│         Relay Bot (selfbot)                 │
-│  ┌─────────────┐  ┌─────────────────────┐ │
-│  │  Skills    │  │  Message Handlers   │ │
-│  │  - Calendar│  │  - Extraction       │ │
-│  │  - Image   │  │  - Confirmation     │ │
-│  │  - Memory  │  │  - Reminders       │ │
-│  │  - Clarify │  │  - Help            │ │
-│  └─────────────┘  └─────────────────────┘ │
+│              Bottus                           │
+│  ┌─────────────────────────────────────────┐ │
+│  │  NanoBot (brain)                         │ │
+│  │  - Skills (capability definitions)       │ │
+│  │  - Decisions (what to do)                │ │
+│  │  - Personality (SOUL.md)                │ │
+│  │  - User context (USER.md)                │ │
+│  └─────────────────────────────────────────┘ │
+│  ┌─────────────┐  ┌─────────────────────┐   │
+│  │  Skills    │  │  Message Handlers   │   │
+│  │  Dispatch  │  │  - Extraction       │   │
+│  │ (limbs)    │  │  - Confirmation     │   │
+│  └─────────────┘  └─────────────────────┘   │
+│  (mouth: responding)                          │
 └─────────────┬───────────────────────────────┘
               │
     ┌─────────┼─────────┐
     ▼         ▼         ▼
 ┌───────┐ ┌───────┐ ┌────────┐
 │Ollama│ │ComfyUI│ │SQLite  │
-│  LLM │ │ Images│ │  DB    │
+│ Brain│ │Images │ │  DB    │
 └───────┘ └───────┘ └────────┘
 ```
 
@@ -241,13 +266,16 @@ docker-compose up -d
 | Feature | Cloud API | Bottus |
 |---------|-----------|--------|
 | **Cost** | Monthly API bills | One-time GPU cost |
-| **Privacy** | Data leaves your machine || **Limits** Everything stays local |
- | Rate limits | Your hardware, your rules |
+| **Privacy** | Data leaves your machine | Everything stays local |
+| **Limits** | Rate limits | Your hardware, your rules |
 | **Availability** | Internet required | Works offline (mostly) |
 
 ---
 
 ## Documentation
+
+### NanoBot Integration
+- [NanoBot Integration](docs/nanobot-integration.md) - How Bottus connects to NanoBot (brain) as ears, mouth, and limbs
 
 ### Getting Started
 - [Environment Variables](docs/env-variables.md) - All configuration options
@@ -315,7 +343,7 @@ Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md)
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
+3. Commit your changes (`git commit -m 'feat: add amazing-feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
