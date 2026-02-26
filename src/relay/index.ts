@@ -424,20 +424,7 @@ validateEnv();
   logger.info('[Extraction] No items extracted from message', { context: 'Relay' });
   }
 
-  // Permission check - block sensitive topics for non-admins
-  const role = permissionService.getUserRole(channelId, userId);
-  const isAdmin = role === 'admin' || role === 'owner';
-  const sensitivePatterns = [
-    'install skill', 'add skill', 'remove skill', 'delete skill',
-    'system config', 'admin', 'permission', 'role',
-    'delete all', 'clear all', 'wipe'
-  ];
-  const messageLower = userMessage.toLowerCase();
-  const isSensitive = sensitivePatterns.some(p => messageLower.includes(p));
-  if (isSensitive && !isAdmin) {
-    await discord.sendMessage(channelId, `🚫 Du har ikke tillatelse til å utføre denne handlingen. Spør en admin om hjelp.`);
-    return;
-  }
+  // Get user role for context (NanoBot handles permission-aware responses)
 
   // Inject memory context if available
   const personaContext = botPersonaService.buildSystemPrompt();
