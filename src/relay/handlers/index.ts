@@ -6,3 +6,4 @@ export { HelpHandler } from './help.js';
 export { ImageHandler } from './image.js';
 export { CalendarHandler, DayDetailsHandler } from './calendar.js';
 export { MemoryHandler, ClarificationHandler } from './memory.js';
+export { RoleHandler } from './role.js';

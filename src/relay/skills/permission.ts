@@ -1,6 +1,8 @@
 // Permission system for NanoBot
 // Provides role-based access control for skills and dangerous actions
 
+import { roleDb } from '../../db/index.js';
+
 export enum UserRole {
   MEMBER = 'member',
   CONTRIBUTOR = 'contributor',
@@ -45,17 +47,37 @@ export class PermissionService {
     return this.ownerId;
   }
 
-  setUserRole(channelId: string, userId: string, role: UserRole): void {
+  setUserRole(channelId: string, userId: string, role: UserRole, assignedBy?: string): void {
+    // Store in memory for fast access
     if (!this.channelRoles.has(channelId)) {
       this.channelRoles.set(channelId, new Map());
     }
     this.channelRoles.get(channelId)!.set(userId, role);
+    
+    // Persist to database
+    roleDb.setUserRole(channelId, userId, role, assignedBy);
   }
 
   getUserRole(channelId: string, userId: string): UserRole {
+    // Owner always has full access
     if (userId === this.ownerId) return UserRole.OWNER;
+    
+    // Check memory first (fast path)
     const channelMap = this.channelRoles.get(channelId);
-    return channelMap?.get(userId) || UserRole.MEMBER;
+    if (channelMap?.has(userId)) {
+      return channelMap.get(userId)!;
+    }
+    
+    // Load from database if not in memory
+    const dbRole = roleDb.getUserRole(channelId, userId) as UserRole;
+    
+    // Cache in memory for next time
+    if (!this.channelRoles.has(channelId)) {
+      this.channelRoles.set(channelId, new Map());
+    }
+    this.channelRoles.get(channelId)!.set(userId, dbRole);
+    
+    return dbRole;
   }
 
   hasPermission(channelId: string, userId: string, permission: Permission): boolean {

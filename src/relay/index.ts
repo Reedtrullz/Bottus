@@ -38,6 +38,8 @@ import { MemoryService } from '../services/memory.js';
 import { toneDb } from '../db/index.js';
 import { FeedbackService } from '../services/feedback.js';
 import { permissionService, auditLogger, confirmationService } from './skills/index.js';
+import { userProfileService } from '../services/user-profile.js';
+import { botPersonaService } from '../services/bot-persona.js';
 
 // Norwegian month name -> 0-11 index helper
 function norskMonthNameToIndex(name: string): number | null {
@@ -423,7 +425,11 @@ validateEnv();
   }
 
   // Inject memory context if available
-  const promptForOllama = memoryContext ? `${memoryContext}\n${enhancedMessage}` : enhancedMessage;
+  const personaContext = botPersonaService.buildSystemPrompt();
+  const personaPrefix = personaContext ? `${personaContext}\n\n` : "";
+  const userContext = userProfileService.buildContextString(channelId, userId);
+  const userContextPrefix = userContext ? `[User Context]\n${userContext}\n\n` : "";
+  const promptForOllama = memoryContext ? `${personaPrefix}${userContextPrefix}${memoryContext}\n${enhancedMessage}` : `${personaPrefix}${userContextPrefix}${enhancedMessage}`;
 
   // Health check before Ollama call
   const ollamaHealth = await healthMonitor.checkOllama();

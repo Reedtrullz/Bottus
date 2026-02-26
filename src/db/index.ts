@@ -149,7 +149,20 @@ export async function initializeDatabase() {
       updated_at INTEGER DEFAULT (strftime('%s', 'now'))
     )
   `);
+  // Channel user roles (RBAC)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS channel_user_roles (
+      id TEXT PRIMARY KEY,
+      channel_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'member',
+      assigned_by TEXT,
+      assigned_at INTEGER DEFAULT (strftime('%s', 'now')),
+      UNIQUE(channel_id, user_id)
+    )
+  `);
 
+  // Per-user tone settings (NB default). If not set, default tone used by app logic.
   // Per-user tone settings (NB default). If not set, default tone used by app logic.
   db.run(`
     CREATE TABLE IF NOT EXISTS user_tone (
@@ -297,6 +310,32 @@ export const toneDb = {
   getTone: (userId: string) => queryOne('SELECT tone, language FROM user_tone WHERE user_id = ?', [userId]),
   setTone: (userId: string, tone: string, language?: string) => {
     run('INSERT OR REPLACE INTO user_tone (user_id, tone, language) VALUES (?, ?, ?)', [userId, tone, language ?? 'nb-NO']);
+  }
+};
+
+// Channel user roles (RBAC)
+export const roleDb = {
+  getUserRole: (channelId: string, userId: string) => {
+    const row = queryOne('SELECT role FROM channel_user_roles WHERE channel_id = ? AND user_id = ?', [channelId, userId]);
+    return row?.role || 'member';
+  },
+  
+  setUserRole: (channelId: string, userId: string, role: string, assignedBy?: string) => {
+    const id = uuidv4();
+    run('INSERT OR REPLACE INTO channel_user_roles (id, channel_id, user_id, role, assigned_by, assigned_at) VALUES (?, ?, ?, ?, ?, ?)',
+      [id, channelId, userId, role, assignedBy || null, Math.floor(Date.now() / 1000)]);
+  },
+  
+  removeUserRole: (channelId: string, userId: string) => {
+    run('DELETE FROM channel_user_roles WHERE channel_id = ? AND user_id = ?', [channelId, userId]);
+  },
+  
+  getChannelRoles: (channelId: string) => {
+    return queryAll('SELECT * FROM channel_user_roles WHERE channel_id = ?', [channelId]);
+  },
+  
+  getUserChannels: (userId: string) => {
+    return queryAll('SELECT * FROM channel_user_roles WHERE user_id = ?', [userId]);
   }
 };
 // RSVP storage for events
