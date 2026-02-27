@@ -1,6 +1,6 @@
 # Testing Strategy
 
-This document outlines the testing approach for the Ine-Discord project.
+This document outlines the testing approach for the Bottus project.
 
 ## Overview
 
@@ -12,13 +12,6 @@ The project uses **Vitest** for testing. Tests are located in the `tests/` direc
 - **Tests**: 522
 - **Line Coverage**: ~40%
 - **Branch Coverage**: ~77%
-
-- **Test Files**: 23
-- **Tests**: 322
-- **Line Coverage**: ~28%
-- **Branch Coverage**: ~70%
-
-The project uses **Vitest** for testing. Tests are located in the `tests/` directory.
 
 ## Running Tests
 
@@ -53,14 +46,22 @@ tests/
 │   ├── detectors.test.ts
 │   ├── date-utils.test.ts
 │   ├── discord.test.ts
-│   └── ollama.test.ts
+│   ├── ollama.test.ts
+│   └── handlers/
+│       ├── proposal.test.ts
+│       ├── role.test.ts
+│       └── tone.test.ts
 ├── services/
 │   ├── proposal-engine.test.ts
 │   ├── extraction.test.ts
 │   ├── consent.test.ts
 │   ├── feedback.test.ts
 │   ├── reminders.test.ts
-│   └── memory.test.ts
+│   ├── memory.test.ts
+│   ├── calendar-v2.test.ts
+│   ├── governance.test.ts
+│   ├── user-profile.test.ts
+│   └── comfyui.test.ts
 ├── gateway/
 │   ├── adapter-context.test.ts
 │   └── event-bus.test.ts
@@ -68,23 +69,8 @@ tests/
 │   ├── i18n.test.ts
 │   ├── timezone.test.ts
 │   └── env-validator.test.ts
-└── integration/
-    └── relay.integration.test.ts
-```
-tests/
-├── relay/
-│   ├── calendar-skill-v2.test.ts
-│   ├── memory-skill.test.ts
-│   ├── clarification-skill.test.ts
-│   ├── day-details-skill.test.ts
-│   ├── image-skill.test.ts
-│   ├── help-handler.test.ts
-│   ├── discord.test.ts
-│   └── ollama.test.ts
-├── services/
-│   └── proposal-engine.test.ts
-├── gateway/
-│   └── adapter-context.test.ts
+├── db/
+│   └── operations.test.ts
 └── integration/
     └── relay.integration.test.ts
 ```
@@ -215,10 +201,10 @@ const mockDiscord = {
 };
 ```
 
-### Current Coverage Areas
+## Current Coverage Areas
 
 | Module | Coverage | Notes |
-|--------|----------|--------|
+|--------|----------|-------|
 | `src/utils` | ~69% | i18n, timezone, env-validator |
 | `src/relay/skills` | ~55% | Calendar, memory, clarification |
 | `src/relay/utils` | ~60% | Detectors, date-utils |
@@ -227,17 +213,7 @@ const mockDiscord = {
 | `src/db` | ~18% | Database layer |
 | `src/relay` | ~7% | Core relay logic |
 
-### Current Coverage Areas
-
-| Module | Coverage |
-|--------|----------|
-| Skills | High |
-| Services | Medium |
-| Handlers | Medium |
-| Database | Low |
-| Integration | Low |
-
-### Improving Coverage
+## Improving Coverage
 
 1. Add tests for new features
 2. Add regression tests for bugs

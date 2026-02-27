@@ -2,7 +2,7 @@
 
 ## OVERVIEW
 
-TypeScript source code for the Ine-Discord bot.
+TypeScript source code for the Bottus Discord bot.
 
 ## STRUCTURE
 
@@ -24,7 +24,7 @@ src/
 │   ├── memory.ts
 │   └── interfaces.ts
 ├── relay/             # Discord↔Ollama relay (selfbot)
-│   ├── index.ts       # Main relay + digital almanac (564 lines)
+│   ├── index.ts       # Main relay (564 lines, modularized)
 │   ├── discord.ts     # Discord login
 │   ├── ollama.ts      # Ollama API client
 │   ├── health.ts      # Health monitoring endpoint
@@ -54,30 +54,6 @@ src/
 │   │   ├── query-handler.ts
 │   │   └── reminder.ts
 │   └── utils/         # Detectors, rate limiting, date-utils
-│   ├── index.ts       # Main relay + digital almanac (727 lines)
-│   ├── discord.ts     # Discord login
-│   ├── ollama.ts      # Ollama API client
-│   ├── skills/        # Skill system
-│   │   ├── interfaces.ts
-│   │   ├── registry.ts
-│   │   ├── calendar-skill-v2.ts
-│   │   ├── memory-skill.ts
-│   │   ├── clarification-skill.ts
-│   │   └── day-details-skill.ts
-│   ├── handlers/      # Message handlers
-│   │   ├── index.ts
-│   │   ├── help.ts
-│   │   ├── features.ts
-│   │   ├── calendar.ts
-│   │   ├── memory.ts
-│   │   ├── feedback.ts
-│   │   ├── image.ts
-│   │   ├── role.ts
-│   │   ├── techstack.ts
-│   │   ├── tone.ts
-│   │   └── self-analysis.ts
-│   ├── plan-router.ts
-│   └── utils/         # Detectors, rate limiting, date-utils
 ├── services/          # 21 domain services
 │   ├── extraction.ts
 │   ├── calendar.ts
@@ -106,7 +82,7 @@ src/
 
 | File | Lines | Level | Issue |
 |------|-------|-------|-------|
-| relay/index.ts | 727 | MEDIUM | Modularized - handler registry now used |
+| relay/index.ts | 564 | MEDIUM | Modularized - handler registry used |
 | db/index.ts | 604 | MEDIUM | Sync writes, needs indexes |
 | index.ts | 286 | MEDIUM | PollingScheduler coupling |
 

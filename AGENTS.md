@@ -1,9 +1,7 @@
 # PROJECT KNOWLEDGE BASE
 
 **Generated:** 2026-02-27
-**Commit:** 86927d9
-**Branch:** main
-**Commit:** 86927d9
+**Commit:** 5f98357
 **Branch:** main
 
 ## OVERVIEW
@@ -21,13 +19,13 @@ AI Discord bot with local LLM (Ollama), image generation (ComfyUI), shared calen
 │   │   └── handlers/      # Message handlers (role, help, image)
 │   ├── services/          # 21 domain services
 │   ├── gateway/           # Experimental skill dispatcher
-│   ├── db/                # SQLite via sql.js
-│   └── utils/             # Shared utilities
-├── tests/                 # Vitest test suite
+│   ├── db/               # SQLite via sql.js
+│   └── utils/            # Shared utilities
+├── tests/                 # Vitest test suite (34 files, 522 tests, ~40% coverage)
 ├── docs/                  # Documentation
 ├── skills/                # External skill integrations
-├── docker-compose.yml      # Ollama + ComfyUI + relay
-└── package.json           # Node.js 18+, ES modules
+├── docker-compose.yml     # Ollama + ComfyUI + relay
+└── package.json          # Node.js 18+, ES modules
 ```
 
 ## WHERE TO LOOK
@@ -35,7 +33,7 @@ AI Discord bot with local LLM (Ollama), image generation (ComfyUI), shared calen
 | Task | Location | Notes |
 |------|----------|-------|
 | Bot entry | `src/index.ts` | Eris client |
-| Relay bot | `src/relay/index.ts` | Selfbot, 727 lines (MODULARIZED) |
+| Relay bot | `src/relay/index.ts` | Selfbot, 564 lines (MODULARIZED) |
 | Services | `src/services/*.ts` | 21 domain services |
 | Database | `src/db/index.ts` | sql.js |
 | Skills | `src/relay/skills/` | Modular skill system |
@@ -97,11 +95,20 @@ npm run build        # TypeScript compile
 npm test             # Vitest run
 ```
 
+## GITHUB WORKFLOWS
+
+All workflows passing:
+- **CI** - Build + tests on push/PR
+- **Security audit vulnerability** - npm scanning
+- **Docker Build & Push** - Builds `Dockerfile.relay`, pushes to GHCR
+- **Deploy to WSL** - Deploys on release
+- **Sync Cron** - Hourly Google Calendar sync
+
 ## HOTSPOTS
 
 | File | Lines | Level | Issue |
 |------|-------|-------|-------|
-| src/relay/index.ts | 727 | MEDIUM | Modularized - handler registry now used |
+| src/relay/index.ts | 564 | MEDIUM | Modularized - handler registry used |
 | src/db/index.ts | 604 | MEDIUM | Sync writes, needs indexes |
 | src/index.ts | 286 | MEDIUM | PollingScheduler coupling |
 
@@ -110,7 +117,9 @@ npm test             # Vitest run
 - Selfbot uses archived library - migration recommended
 - Group DM access requires user token, not bot token
 - Ollama model: `bazobehram/qwen3-14b-claude-4.5-opus-high-reasoning`
-- Handler registry pattern now implemented in relay
+- Handler registry pattern implemented in relay
+- Test coverage: ~40% (522 tests)
+- Docker builds successfully via GitHub Actions
 
 ---
 
