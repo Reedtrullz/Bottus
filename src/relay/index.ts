@@ -434,11 +434,7 @@ if (techStackHandler.canHandle(userMessage, handlerCtx)) {
   const techResult = await techStackHandler.handle(userMessage, handlerCtx);
   if (techResult.handled) return;
 }
-if (helpHandler.canHandle(userMessage, handlerCtx)) {
-  const helpResult = await helpHandler.handle(userMessage, handlerCtx);
-  logger.info('[Relay] HelpHandler result:', { context: 'Relay', result: helpResult });
-  if (helpResult.handled) return;
-}
+
 
 // Unified skill routing using skillRegistry
 const securityCtx = { permissionService, auditLogger, confirmationService };
@@ -476,6 +472,13 @@ if (skill) {
   if (result.success && result.data?.handled) {
     return;
   }
+}
+
+// Help handler - AFTER skills so actual queries are handled by skills first
+if (helpHandler.canHandle(userMessage, handlerCtx)) {
+  const helpResult = await helpHandler.handle(userMessage, handlerCtx);
+  logger.info('[Relay] HelpHandler result:', { context: 'Relay', result: helpResult });
+  if (helpResult.handled) return;
 }
 
 // Dispatch to modular handlers (image - remaining handler)

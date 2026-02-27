@@ -59,7 +59,7 @@ export class CalendarSkillV2 implements Skill {
       return this.proposeTime(message, channelId, userId);
     }
 
-    if (lower.includes('list') || lower.includes('what\'s coming') || lower.includes('hva skjer')) {
+    if (lower.includes('list') || lower.includes('what') || lower.includes('coming') || lower.includes('hva skjer') || lower.includes('hva har') || lower.includes('mine arrangementer') || lower.includes('framover')) {
       return this.listEvents(message, channelId);
     }
 

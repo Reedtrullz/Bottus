@@ -1,6 +1,7 @@
 
 import { Client } from 'discord.js-selfbot-v13';
 import { logger } from '../utils/logger.js';
+import { discordRateLimiter } from './utils/rate-limit.js';
 
 interface MessageHistory {
   content: string;
@@ -94,6 +95,13 @@ export class DiscordRelay {
 
   // Send a DM to a user by their username
   async sendDMToUser(username: string, content: string): Promise<boolean> {
+    // Rate limiting - use 'dm-' + username as key
+    const rateKey = `dm-${username}`;
+    if (!discordRateLimiter.isAllowed(rateKey)) {
+      const remaining = discordRateLimiter.getRemaining(rateKey);
+      logger.warn(`[Discord] Rate limited DM to ${username}, ${remaining} requests remaining`);
+      return false;
+    }
     try {
       // First try to find user in cache
       let user = this.client.users.cache.find((u: any) => 
@@ -133,6 +141,12 @@ export class DiscordRelay {
   }
 
   async sendMessage(channelId: string, content: string, options?: { embed?: any, components?: any[], file?: string }): Promise<any> {
+    // Rate limiting - use channelId as key
+    if (!discordRateLimiter.isAllowed(channelId)) {
+      const remaining = discordRateLimiter.getRemaining(channelId);
+      logger.warn(`[Discord] Rate limited message to ${channelId}, ${remaining} requests remaining`);
+      return null;
+    }
     const channel = this.client.channels.cache.get(channelId);
     if (channel) {
       const chanAny: any = channel as any;
