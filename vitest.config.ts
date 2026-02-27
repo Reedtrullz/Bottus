@@ -1,4 +1,8 @@
 import { defineConfig } from 'vitest/config';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   test: {
@@ -16,7 +20,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '/src': '/home/reed/Projects/Ine-Discord/src'
+      '/src': path.resolve(__dirname, './src')
     }
   }
 });
