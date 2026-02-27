@@ -8,11 +8,6 @@ on:
       - 'package.json'
       - 'tsconfig.json'
 
-
-on:
-  push:
-    branches: [main]
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -56,16 +51,6 @@ jobs:
             else
               echo "Starting Bottus..."
               nohup npx tsx src/relay/index.ts > bot.log 2>&1 &
-            fi
-            if pgrep -f "dist/index.js" > /dev/null; then
-              echo "Restarting Bottus..."
-              pkill -f "dist/index.js" || true
-              sleep 2
-              nohup npm start > bot.log 2>&1 &
-              echo "Bottus restarted"
-            else
-              echo "Starting Bottus..."
-              nohup npm start > bot.log 2>&1 &
             fi
             
             # Wait and check health
