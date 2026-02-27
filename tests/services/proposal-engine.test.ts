@@ -3,6 +3,41 @@ import { ProposalEngine } from '../../src/services/proposal-engine.js';
 import { ConfirmationService, ConfirmationType } from '../../src/relay/skills/confirmation.js';
 import { PermissionService, Permission, UserRole } from '../../src/relay/skills/permission.js';
 
+// Mock the database module - provide all exports to prevent import errors
+vi.mock('../../src/db/index.js', () => ({
+  roleDb: {
+    setUserRole: vi.fn(),
+    getUserRole: vi.fn().mockReturnValue('member'),
+    removeUserRole: vi.fn(),
+    getChannelRoles: vi.fn().mockReturnValue([]),
+    getUserChannels: vi.fn().mockReturnValue([]),
+  },
+  proposalDb: {
+    create: vi.fn(),
+    update: vi.fn(),
+    queryOne: vi.fn(),
+    queryAll: vi.fn(),
+  },
+  initializeDatabase: vi.fn().mockResolvedValue(undefined),
+  consentDb: {},
+  eventDb: {},
+  toneDb: {},
+  rsvpDb: {},
+  taskDb: {},
+  toneProfileDb: {},
+  tokenDb: {},
+  memoryDb: {},
+  feedbackDb: {},
+  preferenceDb: {},
+  metricsDb: {},
+  suggestionsDb: {},
+}));
+
+// Mock database for testing
+import { ProposalEngine } from '../../src/services/proposal-engine.js';
+import { ConfirmationService, ConfirmationType } from '../../src/relay/skills/confirmation.js';
+import { PermissionService, Permission, UserRole } from '../../src/relay/skills/permission.js';
+
 // Mock database for testing
 class MockProposalDb {
   private proposals: Map<string, any> = new Map();

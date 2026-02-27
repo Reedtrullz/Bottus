@@ -1,11 +1,9 @@
 {
-  "active_plan": "/home/reed/Projects/Ine-Discord/.sisyphus/plans/grand-plan.md",
-  "started_at": "2026-02-25T17:05:56.546Z",
+  "active_plan": "/home/reed/Projects/Ine-Discord/.sisyphus/plans/codebase-improvement.md",
+  "started_at": "2026-02-27T18:18:38.723Z",
   "session_ids": [
-    "ses_36a5561cbffe6YQ02hbEkKKH6D",
-    "ses_3695c44d8ffeEBfHI45CPqpPJz",
-    "ses_3691270c3ffe9k0L80Ps1RIPB8"
+    "ses_3612a1954fferwK1E3yrDkiJw4"
   ],
-  "plan_name": "grand-plan",
+  "plan_name": "codebase-improvement",
   "agent": "atlas"
 }

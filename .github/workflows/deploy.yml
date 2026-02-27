@@ -1,0 +1,59 @@
+name: Deploy to WSL
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: github.repository == 'Reedtrullz/Bottus'
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+
+      - name: Deploy to WSL via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.WSL_HOST }}
+          username: ${{ secrets.WSL_USER }}
+          password: ${{ secrets.WSL_PASSWORD }}
+          port: ${{ secrets.WSL_PORT || '22' }}
+          script: |
+            cd /home/reed/Projects/Ine-Discord
+            git pull origin main
+            npm ci
+            npm run build
+            
+            # Restart the bot if running
+            if pgrep -f "dist/index.js" > /dev/null; then
+              echo "Restarting Bottus..."
+              pkill -f "dist/index.js" || true
+              sleep 2
+              nohup npm start > bot.log 2>&1 &
+              echo "Bottus restarted"
+            else
+              echo "Starting Bottus..."
+              nohup npm start > bot.log 2>&1 &
+            fi
+            
+            # Wait and check health
+            sleep 5
+            curl -s http://localhost:3001/health || echo "Health check failed"
+
+      - name: Verify deployment
+        run: |
+          sleep 10
+          curl -s http://localhost:3001/health | grep -q "ok" && echo "✅ Deployment successful" || echo "❌ Deployment failed"

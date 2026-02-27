@@ -1,55 +1,32 @@
-SY|**Generated:** 2026-02-26
-ZX|**Commit:** 86927d9
-MM|**Branch:** main
+# PROJECT KNOWLEDGE BASE
 
-ZJ|## OVERVIEW
-
-KP|AI Discord bot with local LLM (Ollama), image generation (ComfyUI), shared calendar, and role-based access control (RBAC). Two running modes: Relay Bot (selfbot) and NanoBot Gateway.
-
-HV|## STRUCTURE
-
-YM|```
-XB|./
-QH|├── src/                    # TypeScript source (100+ files)
-MT|│   ├── index.ts           # Main entry (Eris client)
-VH|│   ├── relay/             # Discord↔Ollama relay (selfbot)
-SM|│   │   ├── skills/        # Skill system (calendar, memory, permissions)
-PQ|│   │   └── handlers/      # Message handlers (role, help, image)
-XP|│   ├── services/          # 21 domain services
-SP|│   ├── gateway/           # Experimental skill dispatcher
-RQ|│   ├── db/                # SQLite via sql.js (incl. roles)
-BN|│   └── utils/             # Shared utilities
-XQ|├── tests/                 # Vitest test suite
-WK|├── docs/                  # Documentation
-QY|├── skills/                # External skill integrations
-KP|├── docker-compose.yml     # Ollama + ComfyUI + relay
-RM|└── package.json           # Node.js 18+, ES modules
-```
-
-**Generated:** 2026-02-26
-**Commit:** 11e9375
+**Generated:** 2026-02-27
+**Commit:** 86927d9
+**Branch:** main
+**Commit:** 86927d9
 **Branch:** main
 
 ## OVERVIEW
 
-AI Discord bot with local LLM (Ollama), image generation (ComfyUI), and shared calendar for group chats. Two running modes: Relay Bot (selfbot) and NanoBot Gateway.
+AI Discord bot with local LLM (Ollama), image generation (ComfyUI), shared calendar, and role-based access control (RBAC). Two running modes: Relay Bot (selfbot) and NanoBot Gateway.
 
 ## STRUCTURE
 
 ```
 ./
-├── src/                    # TypeScript source (95 files)
+├── src/                    # TypeScript source (100+ files)
 │   ├── index.ts           # Main entry (Eris client)
 │   ├── relay/             # Discord↔Ollama relay (selfbot)
+│   │   ├── skills/        # Skill system (calendar, memory, permissions)
+│   │   └── handlers/      # Message handlers (role, help, image)
 │   ├── services/          # 21 domain services
 │   ├── gateway/           # Experimental skill dispatcher
-│   ├── commands/          # Slash commands
 │   ├── db/                # SQLite via sql.js
 │   └── utils/             # Shared utilities
 ├── tests/                 # Vitest test suite
 ├── docs/                  # Documentation
 ├── skills/                # External skill integrations
-├── docker-compose.yml     # Ollama + ComfyUI + relay
+├── docker-compose.yml      # Ollama + ComfyUI + relay
 └── package.json           # Node.js 18+, ES modules
 ```
 
@@ -58,9 +35,9 @@ AI Discord bot with local LLM (Ollama), image generation (ComfyUI), and shared c
 | Task | Location | Notes |
 |------|----------|-------|
 | Bot entry | `src/index.ts` | Eris client |
-| Relay bot | `src/relay/index.ts` | Selfbot, 1015 lines (HOTSPOT) |
+| Relay bot | `src/relay/index.ts` | Selfbot, 727 lines (MODULARIZED) |
 | Services | `src/services/*.ts` | 21 domain services |
-| Database | `src/db/index.ts` | sql.js, 533 lines (HOTSPOT) |
+| Database | `src/db/index.ts` | sql.js |
 | Skills | `src/relay/skills/` | Modular skill system |
 | Tests | `tests/` | Vitest |
 
@@ -81,16 +58,15 @@ AI Discord bot with local LLM (Ollama), image generation (ComfyUI), and shared c
 - Norwegian/English bilingual commands
 - Timezone: Europe/Oslo hardcoded
 
-JW|
 ## RBAC SYSTEM
 
-KP|Bottus has role-based access control for channel-level permissions:
+Bottus has role-based access control for channel-level permissions:
 
-MH|- **Roles**: member → contributor → admin → owner
-WM|- **Storage**: SQLite `channel_user_roles` table
-BC|- **Enforcement**: Calendar skill, proposal engine, role commands, LLM prompts
+- **Roles**: member → contributor → admin → owner
+- **Storage**: SQLite `channel_user_roles` table
+- **Enforcement**: Calendar skill, proposal engine, role commands, LLM prompts
 
-QW|Key files:
+Key files:
 - `src/relay/skills/permission.ts` - Permission service
 - `src/relay/handlers/role.ts` - Role management commands
 - `src/db/index.ts` - roleDb functions
@@ -98,15 +74,13 @@ QW|Key files:
 
 ## NANOBOT INTEGRATION
 
-BN|Bottus reads NanoBot config from `~/.nanobot/workspace/`:
+Bottus reads NanoBot config from `~/.nanobot/workspace/`:
 - `USER.md` - User profile (name, language, timezone, role)
 - `SOUL.md` - Bot persona and permission behavior
 
-WM|Role is injected into every LLM prompt via `[User Context]`.
+Role is injected into every LLM prompt via `[User Context]`.
 
-See `docs/nanobot-integration.md` for full guide.
-
-## ANTI-PATTERNS
+## ANTI-PATTERNS (THIS PROJECT)
 
 - **No .env in git** - Use .env.example
 - **No .db files committed** - sql.js in-memory
@@ -127,8 +101,8 @@ npm test             # Vitest run
 
 | File | Lines | Level | Issue |
 |------|-------|-------|-------|
-| src/relay/index.ts | 1015 | HIGH | Monolith, 20+ sequential if-checks |
-| src/db/index.ts | 533 | MEDIUM | Sync writes, no indexes |
+| src/relay/index.ts | 727 | MEDIUM | Modularized - handler registry now used |
+| src/db/index.ts | 604 | MEDIUM | Sync writes, needs indexes |
 | src/index.ts | 286 | MEDIUM | PollingScheduler coupling |
 
 ## NOTES
@@ -136,6 +110,7 @@ npm test             # Vitest run
 - Selfbot uses archived library - migration recommended
 - Group DM access requires user token, not bot token
 - Ollama model: `bazobehram/qwen3-14b-claude-4.5-opus-high-reasoning`
+- Handler registry pattern now implemented in relay
 
 ---
 
@@ -149,12 +124,6 @@ You are a helpful AI assistant. Be concise, accurate, and friendly.
 - Use precise tense: "I will run X" before the call
 - NEVER claim success before tool result confirms it
 - Ask for clarification when request is ambiguous
-
-### Scheduled Reminders
-
-When user asks for reminder, use BOTH:
-1. Cron: `nanobot cron add --name "reminder" ...`
-2. Google Calendar: Create event via Maton API
 
 ### Known Tool Issues
 

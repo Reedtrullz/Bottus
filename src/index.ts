@@ -186,6 +186,9 @@ client.on('messageCreate', async (msg: any) => {
   
   if (msg.author.bot) return;
   
+  // Ignore system messages (group add/remove, etc.)
+  if (msg.system) return;
+  
   const userMessage = msg.content?.replace(/<@!?\d+>/g, '').replace(/@inebotten/gi, '').trim() || '';
   
   if (isTechStackQuery(userMessage)) {

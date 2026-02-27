@@ -123,10 +123,16 @@ async function handleDiscordMessage(msg) {
   // Ignore bot messages
   if (msg.author.bot) return;
   
+  // Ignore own messages - prevent self-response loops
+  if (msg.author.id === userId) return;
+  
+  // Ignore empty messages
+  const content = msg.content?.trim() || '';
+  if (content.length === 0) return;
+  
   const channelId = msg.channel.id;
   const senderId = msg.author.id;
   const senderName = msg.author.username;
-  const content = msg.content || '';
   const messageId = msg.id;
   const timestamp = msg.createdAt.toISOString();
   

@@ -1,6 +1,7 @@
 # src/relay/handlers - Message Handler System
 
 ## OVERVIEW
+
 Modular message handler architecture for relay message processing. Implements a registry pattern where handlers are registered and dispatched based on `canHandle()` evaluation.
 
 ## FILES
@@ -11,14 +12,17 @@ Modular message handler architecture for relay message processing. Implements a 
 | registry.ts | `HandlerRegistry` class with `register()` and `dispatch()` |
 | index.ts | Exports and handler registration |
 | help.ts | Contextual help responses |
-| image.ts | ComfyUI image generation (remaining handler) |
+| image.ts | ComfyUI image generation |
 | calendar.ts | Calendar event handling |
 | memory.ts | Memory store/recall |
 | feedback.ts | Feedback handling |
 | features.ts | Capabilities response |
 | techstack.ts | Tech stack explanation |
-| teach.ts | Teaching handler |
+| tone.ts | Tone configuration commands |
+| self-analysis.ts | Bot performance analysis |
+| role.ts | Role management |
 | proposal.ts | Proposal approve/reject commands |
+| teach.ts | Teaching handler |
 
 ## HANDLER INTERFACE
 
@@ -46,14 +50,19 @@ interface HandlerResult {
 ## REGISTRY PATTERN
 
 ```typescript
-const globalHandlers = new HandlerRegistry();
+import { globalHandlers } from './handlers/index.js';
 
-globalHandlers.register(new ImageHandler(comfyui));
-globalHandlers.register(new CalendarHandler(calendarService));
-// ... register more handlers
+// Register handlers in main()
+globalHandlers.register(featuresHandler);
+globalHandlers.register(techStackHandler);
+globalHandlers.register(helpHandler);
+globalHandlers.register(imageHandler);
+globalHandlers.register(new ToneHandler(toneDb));
+globalHandlers.register(new SelfAnalysisHandler(selfImprovement));
 
-// Dispatch via registry
+// Dispatch in onMention callback
 const result = await globalHandlers.dispatch(message, ctx);
+if (result.handled) return;
 ```
 
 ## CONVENTIONS
@@ -61,38 +70,20 @@ const result = await globalHandlers.dispatch(message, ctx);
 - Handlers implement `MessageHandler` interface
 - `canHandle()` returns boolean for router eligibility
 - `handle()` processes and returns `HandlerResult`
-- Constructor injection for dependencies (e.g., `ComfyUIClient`)
+- Constructor injection for dependencies
 - Unused params prefixed with underscore: `_ctx`, `_message`
 
-## EXAMPLE HANDLER
+## HANDLER EXECUTION ORDER
 
-```typescript
-export class ImageHandler implements MessageHandler {
-  readonly name = 'image';
-
-  private comfyui: ComfyUIClient | null;
-
-  constructor(comfyui: ComfyUIClient | null) {
-    this.comfyui = comfyui;
-  }
-
-  canHandle(message: string, _ctx: HandlerContext): boolean {
-    if (!message || !this.comfyui) return false;
-    const prompt = extractImagePrompt(message);
-    return prompt !== null;
-  }
-
-  async handle(message: string, ctx: HandlerContext): Promise<HandlerResult> {
-    // ... implementation
-  }
-}
-```
+1. Rate limiting check (first)
+2. Image generation (special case - ComfyUI health check)
+3. skillRegistry (for complex skills)
+4. globalHandlers.dispatch() (for simple handlers)
 
 ## NOTES
 
 - Handler dispatch is sequential (first match wins)
-- Handlers are composed in `relay/index.ts` at startup
+- Handlers registered in `relay/index.ts` at startup
 - Uses `extractImagePrompt()` from `../utils/detectors.js`
 - Bilingual support (Norwegian/English) in help handler
-
-**NOTE:** Most handlers migrated to skills. Remaining: ImageHandler, HelpHandler, FeedbackHandler, TechStackHandler, FeaturesHandler
+- All handlers now wired to globalHandlers registry

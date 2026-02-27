@@ -1,7 +1,9 @@
+import { handleQuery } from './services/query-handler.js';
+import { setDiscord, startReminderInterval } from './services/reminder.js';
 import { config } from 'dotenv';
 import './utils/console-override.js';
 import { DiscordRelay } from './discord.js';
-import { eventDb, taskDb, initializeDatabase, metricsDb } from '../db/index.js';
+import { initializeDatabase, metricsDb } from '../db/index.js';
 import { ExtractionService, ExtractedItem } from '../services/extraction.js';
 import { rsvpDb } from '../db/index.js';
 import { OllamaClient } from './ollama.js';
@@ -15,9 +17,9 @@ import { selfHealer } from '../services/self-healer.js';
 import { healthMonitor } from '../services/health-monitor.js';
 import { ComfyUIClient } from '../services/comfyui.js';
 import { t } from '../utils/i18n.js';
-import { isQueryMessage, isCalendarQuery, isTechStackQuery, isFeaturesQuery, isSelfAnalysisQuery, isMemoryStore, isMemoryQuery, extractImagePrompt } from './utils/detectors.js';
+import { isQueryMessage, extractImagePrompt } from './utils/detectors.js';
 import { discordRateLimiter } from './utils/rate-limit.js';
-import { FeaturesHandler, TechStackHandler, HelpHandler, HandlerContext, ImageHandler } from './handlers/index.js';
+import { FeaturesHandler, TechStackHandler, HelpHandler, HandlerContext, ImageHandler, globalHandlers, ToneHandler, SelfAnalysisHandler } from './handlers/index.js';
 
 let comfyui: any = null;
 const ollamaBreaker = new CircuitBreaker();
@@ -35,159 +37,14 @@ import { startHealthEndpoint } from './health.js';
 import { CalendarDisplayService } from '../services/calendar-display.js';
 import { ToneService } from '../services/tone.js';
 import { MemoryService } from '../services/memory.js';
-import { toneDb } from '../db/index.js';
-import { FeedbackService } from '../services/feedback.js';
+
+
 import { permissionService, auditLogger, confirmationService } from './skills/index.js';
 import { userProfileService } from '../services/user-profile.js';
 import { botPersonaService } from '../services/bot-persona.js';
 
-// Norwegian month name -> 0-11 index helper
-function norskMonthNameToIndex(name: string): number | null {
-  if (!name) return null;
-  const n = name.toLowerCase();
-  const map: Record<string, number> = {
-    januar: 0,
-    februar: 1,
-    mars: 2,
-    april: 3,
-    mai: 4,
-    juni: 5,
-    juli: 6,
-    august: 7,
-    september: 8,
-    oktober: 9,
-    november: 10,
-    desember: 11,
-  };
-  return map[n] ?? null;
-}
-// Month index -> Norwegian month name
-function norskMonthIndexToName(idx: number): string {
-  const list = [
-    'Januar','Februar','Mars','April','Mai','Juni','Juli','August','September','Oktober','November','Desember'
-  ];
-  return list[((idx % 12) + 12) % 12];
-}
 
-// Track pending clarifications: channelId -> { text, timestamp }
-const pendingClarifications = new Map<string, { text: string; timestamp: number }>();
 
-async function handleQuery(channelId: string, query: string, userId?: string): Promise<string> {
-  // Mark channelId as used to satisfy static analysis when the value isn't read
-  void channelId;
-  // Fetch upcoming events and pending tasks
-  const eventsResp: any[] = await eventDb.findUpcoming(10);
-  const tasksResp: any[] = await taskDb.findPending();
-  const events = Array.isArray(eventsResp) ? eventsResp : [];
-  const tasks = Array.isArray(tasksResp) ? tasksResp : [];
-  const q = (query ?? "").toLowerCase();
-  // If a userId is provided, allow specific event title queries
-  const userIdForQuery = userId ?? '';
-  const specificFromQuery = maybeHandleSpecificEventQuery(query ?? '', userIdForQuery);
-  if (specificFromQuery) return specificFromQuery;
-  let filteredEvents = events;
-  const keywords: string[] = [];
-  if (q.includes("alfred")) keywords.push("alfred");
-  if (q.includes("spania") || q.includes("spanish")) keywords.push("spania");
-  if (keywords.length > 0) {
-    filteredEvents = events.filter((ev: any) => {
-      const title = (ev?.title ?? "").toString().toLowerCase();
-      const desc = (ev?.description ?? "").toString().toLowerCase();
-      return keywords.some(k => title.includes(k) || desc.includes(k));
-    });
-  }
-
-  const formatDateTime = (dt: any): string => {
-    try {
-      const d = new Date(dt);
-      return d.toLocaleString("nb-NO", { dateStyle: "medium", timeStyle: "short" });
-    } catch {
-      return dt?.toString?.() ?? "";
-    }
-  };
-
-  // NEW: Specific event query handling (Norwegian)
-  // If user asks "når er <title>?" try to fetch exact event by title
-  function maybeHandleSpecificEventQuery(queryStr: string, userId: string): string | null {
-    if (!queryStr) return null as string | null;
-    const lower = queryStr.toLowerCase();
-    if (!lower.includes('når er')) return null;
-    const m = queryStr.match(/når er\s+(.+?)(?:\?|$)/i);
-    if (!m) return null;
-    const titleQuery = m[1]?.trim();
-    if (!titleQuery) return null;
-    try {
-      const hits = (eventDb as any).searchByTitle(userId, titleQuery) as any[];
-      if (Array.isArray(hits) && hits.length > 0) {
-        const ev = hits[0];
-        const start = ev?.start_time ?? ev?.startTime ?? ev?.start;
-        const startText = start != null ? formatDateTime(start) : '';
-        const end = ev?.end_time ?? ev?.endTime ?? ev?.end;
-        const endText = end != null ? ` til ${formatDateTime(end)}` : '';
-        const nm = ev?.title ?? titleQuery;
-        return `Arrangementen "${nm}" er planlagt${startText ? ` kl. ${startText}` : ''}${endText}.`;
-      } else {
-        return `Fant ingen hendelse med tittelen "${titleQuery}".`;
-      }
-    } catch {
-      return null;
-    }
-  }
-
-  const formatEvent = (ev: any): string => {
-    const title = ev?.title ?? ev?.name ?? "Arrangement";
-    const t = ev?.start ?? ev?.time ?? ev?.date ?? ev?.startTime;
-    const timePart = t ? `kl. ${formatDateTime(t)}` : "";
-    return [title, timePart].filter(Boolean).join(" ").trim();
-  };
-
-  // Build response
-  const parts: string[] = [];
-  // Norwegian RSVP query: who is coming to the next event?
-  if (q.includes('hvem kommer')) {
-    const nextEvent = events.length > 0 ? events[0] : null;
-    if (nextEvent) {
-      try {
-        const rsvps = await (rsvpDb as any).findForEvent(nextEvent.id) as any[];
-        const lines = (rsvps || []).map((rv: any) => `${rv.user_id} (${rv.status})`);
-        const text = lines.length > 0 ? lines.join(', ') : 'Ingen påmeldte ennå';
-        return `Deltakere for neste arrangement (${nextEvent.title}): ${text}`;
-      } catch {
-        return `Deltakere for neste arrangement: ingen data tilgjengelig`;
-      }
-    }
-    return 'Ingen kommende arrangementer å vise deltakere for.';
-  }
-  if (filteredEvents.length > 0) {
-    const list = filteredEvents.slice(0, 10);
-    if (list.length === 1) {
-      parts.push(`Du har ${formatEvent(list[0]).trim()}`);
-    } else {
-      const items = list.map((ev: any, idx: number) => `${idx + 1}) ${formatEvent(ev).trim()}`);
-      parts.push(`Planlagt: ${items.join(", ")}`);
-    }
-  }
-  if (Array.isArray(tasks) && tasks.length > 0) {
-    const tlist = tasks.slice(0, 10);
-    const fmt = tlist.map((tk: any, idx: number) => {
-      const title = tk?.title ?? tk?.name ?? "Oppgave";
-      const due = tk?.due ?? tk?.dueDate ?? null;
-      const when = due ? ` (${formatDateTime(due)})` : "";
-      return `${idx + 1}) ${title}${when}`;
-    });
-    if (parts.length > 0) {
-      parts.push(`Neste oppgaver: ${fmt.join(", ")}`);
-    } else if (tlist.length === 1) {
-      parts.push(`Du har en oppgave: ${fmt[0]}`);
-    } else {
-      parts.push(`Neste oppgaver: ${fmt.join(", ")}`);
-    }
-  }
-  if (parts.length === 0) {
-    return "Ingen planlagte arrangementer";
-  }
-  return parts.join("\n");
-}
 
 config();
 
@@ -236,6 +93,8 @@ validateEnv();
   const COMFYUI_URL = process.env.COMFYUI_URL || 'http://localhost:8188';
   comfyui = new ComfyUIClient(COMFYUI_URL);
   const discord = new DiscordRelay(DISCORD_TOKEN, HISTORY_MAX_MESSAGES);
+  setDiscord(discord);
+  startReminderInterval();
 
   // Register message handlers
   const featuresHandler = new FeaturesHandler();
@@ -331,12 +190,20 @@ validateEnv();
   // Feedback handler for logging and critique
   const feedbackHandler = new FeedbackHandler('./data/interactions.db', './data/critic-prompt.txt', OLLAMA_URL, OLLAMA_MODEL);
   // Lightweight FeedbackService instance (kept for backward compatibility in existing paths)
-  const feedback = new FeedbackService();
+
 
   // Register modular handlers
   const imageHandler = new ImageHandler(comfyui);
 
-  // Register skills with the skillRegistry at startup
+  // Register all handlers with globalHandlers
+  globalHandlers.register(featuresHandler);
+  globalHandlers.register(techStackHandler);
+  globalHandlers.register(helpHandler);
+  globalHandlers.register(imageHandler);
+  globalHandlers.register(new ToneHandler());
+  globalHandlers.register(new SelfAnalysisHandler(selfImprovement));
+
+
   const calendarV2 = new CalendarServiceV2('./data/calendar-v2.db');
   skillRegistry.register(new CalendarSkillV2(calendarV2));
   skillRegistry.register(new MemorySkill());
@@ -617,60 +484,11 @@ if (imageHandler.canHandle(userMessage, handlerCtx)) {
   if (imgResult.handled) return;
 }
 
-  // Phase 3: per-user tone set command (NB-NO friendly) - allow minor configuration via chat
-  if (userMessage.startsWith('tone set') || userMessage.startsWith('tone-set')) {
-    const tokens = userMessage.split(/\s+/).slice(2);
-    let language = 'nb-NO';
-    tokens.forEach((t: string) => {
-      if (t.startsWith('en')) language = 'en-US';
-    });
-    try {
-      toneDb?.setTone?.(userId, 'friendly_nb', language);
-      await discord.sendMessage(channelId, `Tone oppdatert: ${language}`);
-    } catch {
-      await discord.sendMessage(channelId, `Kunne ikke oppdatere tone for deg.`);
-    }
-    return;
-  }
+// Dispatch remaining to globalHandlers registry
+const result = await globalHandlers.dispatch(userMessage, handlerCtx);
+if (result.handled) return;
 
-    // Feedback handling: store or view feedback
-    if (userMessage.toLowerCase().includes('tilbakemelding') || userMessage.toLowerCase().includes('feedback')) {
-      // If user says "tilbakemelding" followed by text, store it
-      const feedbackMatch = userMessage.match(/(?:tilbakemelding|feedback)\s*:?\s*(.+)/i);
-      if (feedbackMatch && feedbackMatch[1]?.trim()) {
-        // Store feedback with the text
-        try {
-          await feedback.store(userId, '', channelId, 'positive', feedbackMatch[1].trim(), '');
-          await discord.sendMessage(channelId, `Takk for tilbakemeldingen! ${feedbackMatch[1].trim().substring(0, 50)}... lagret.`);
-        } catch (e) {
-          await discord.sendMessage(channelId, `Kunne ikke lagre tilbakemelding: ${(e as Error)?.message}`);
-        }
-        return;
-      }
-      // Otherwise show their recent feedback
-      try {
-        const userFeedback = await feedback.getByUser(userId, 10);
-        const list = feedback.formatFeedbackList(userFeedback);
-        await discord.sendMessage(channelId, `📋 Dine tilbakemeldinger:\n${list}`);
-      } catch (e) {
-        await discord.sendMessage(channelId, `Kunne ikke hente tilbakemeldinger: ${(e as Error)?.message}`);
-      }
-      return;
-    }
-    
-    // Check for pending clarification response
-    const pending = pendingClarifications.get(channelId);
-    if (pending && (userMessage === 'avtale' || userMessage === 'minne' || userMessage === 'avtale!' || userMessage === 'minne!')) {
-      pendingClarifications.delete(channelId);
-      if (userMessage.startsWith('avtale')) {
-        await discord.sendMessage(channelId, `Får ikke opprettet kalenderhendelse ennå. Kan du prøve /kalender kommandoen?`);
-      } else {
-        await memory.store(userId, pending.text);
-        await discord.sendMessage(channelId, `Lagret minne: ${pending.text}`);
-      }
-      return;
-    }
-    // Build reply-context if this is a reply to a bot message
+// Build reply-context if this is a reply to a bot message
     let enhancedUserMessage = userMessage;
     const replyId = (msg as any).reference?.message_id || (msg as any).reference?.messageId;
     if (replyId) {
@@ -695,215 +513,6 @@ if (imageHandler.canHandle(userMessage, handlerCtx)) {
       } catch (e: any) {
         console.error('[Relay] Reply context fetch failed:', e?.message ?? e);
       }
-    }
-    // Features trigger: respond with capabilities
-    if (isFeaturesQuery(userMessage)) {
-      try {
-        const lines = [
-          'Jeg kan hjelpe deg med litt av hvert! Her er hva jeg kan:',
-          '',
-          '📅 **Kalender** - spør om "hva skjer" eller "når er X"',
-          '💾 **Huske ting for deg** - bare si "husk at..."',
-          '📊 **Lage avstemninger** - "finn en tid for møte"',
-          '',
-          'Vil du vite mer om hvordan jeg er bygget? Spør om "tech stack"! 🤓'
-        ];
-        const text = lines.join('\n');
-        const toned = ToneService.apply(text, userId);
-        await discord.sendMessage(channelId, toned);
-      } catch (err) {
-        console.error('[Relay] Features error:', err);
-      }
-      return;
-    }
-    // Tech stack trigger: respond
-    if (isTechStackQuery(userMessage)) {
-      try {
-        const lines = [
-          'Ah, du vil vite hvordan jeg fungerer? 😊',
-          '',
-          'Jeg er bygget med **TypeScript** og kjører på **Node.js**.',
-          'For Discord bruker jeg **Eris** og en selfbot-ting for å kunne lese gruppechatter.',
-          '',
-          'Den "hjernen" min er **Ollama** med mistral:7b-instruct modellen - den er ganske flink til norsk!',
-          'Alt lagres lokalt i **SQLite**, så ingen data forlater maskinen din.',
-          '',
-          'Hele greia kjører i **Docker** konteinere for å holde det ryddig. 🐳'
-        ];
-        await discord.sendMessage(channelId, lines.join('\n'));
-      } catch (err) {
-        console.error('[Relay] Tech stack error:', err);
-      }
-      return;
-    }
-    // Self-analysis trigger: analyze bot performance
-    if (isSelfAnalysisQuery(userMessage)) {
-      try {
-        await discord.sendMessage(channelId, t('selfAnalysis.start'));
-        const result = await selfImprovement.analyze(50);
-        const stats = selfImprovement.getStats();
-        const lines = [
-          `📊 **Analyseresultater**`,
-          '',
-          `Totalt: ${stats.total} requests`,
-          `Gj.snitt respons-tid: ${Math.round(Number(stats.avgResponseTime))}ms`,
-          `Feil-rate: ${Math.round((stats.errorRate || 0) * 100)}%`,
-          '',
-          result.summary,
-          ''
-        ];
-        if (result.suggestions.length > 0) {
-          lines.push('💡 **Forslag til forbedringer:**');
-          for (const s of result.suggestions.slice(0, 3)) {
-            lines.push(`- [${s.category}] ${s.description} (${s.effort})`);
-          }
-        }
-        await discord.sendMessage(channelId, lines.join('\n'));
-      } catch (err) {
-        console.error('[Relay] Self-analysis error:', err);
-        await discord.sendMessage(channelId, t('selfAnalysis.error'));
-      }
-      return;
-    }
-    // Memory store / recall handling (Norwegian prompts)
-    try {
-      if (isMemoryStore(userMessage)) {
-        const m = userMessage.match(/(?:^|\s)(husk|husk at|husk jeg er)\b\s*(.*)/i);
-        const textToStore = m?.[2]?.trim() ?? userMessage;
-        
-        // Check if text contains date/time patterns - if so, ask for clarification
-        const datePatterns = [
-          'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag', 'søndag',
-          'i dag', 'i morgen', 'imorgen', 'neste uke',
-          'kl ', 'klokken', 'tidspunkt',
-          'dato', 'januar', 'februar', 'mars', 'april', 'mai', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'desember'
-        ];
-        const hasDatePattern = datePatterns.some(p => textToStore.toLowerCase().includes(p));
-        const hasTimePattern = /\d{1,2}:\d{2}/.test(textToStore);
-        
-        if (hasDatePattern || hasTimePattern) {
-          // Ask for clarification and store pending
-          pendingClarifications.set(channelId, { text: textToStore, timestamp: Date.now() });
-          await discord.sendMessage(channelId, 
-            'Jeg ser at dette kan være en avtale eller et minne. Vil du:\n' +
-            '• 🗓️ **Opprett som kalenderhendelse**\n' +
-            '• 💾 **Lagre som et minne**\n\n' +
-            'Svar med "avtale" eller "minne", så ordner jeg det!'
-          );
-          return;
-        }
-        
-        await memory.store(userId, textToStore);
-        const memoryMsg = `Lagret minne: ${textToStore}`;
-        const tonedMemory = ToneService.apply(memoryMsg, userId);
-        await discord.sendMessage(channelId, tonedMemory);
-        return;
-      }
-      if (isMemoryQuery(userMessage)) {
-        const mems: any[] = await memory.recall(userId);
-        if (Array.isArray(mems) && mems.length > 0) {
-          const items = mems.slice(0, 5).map((mm: any, idx: number) => `${idx + 1}. ${mm?.fact ?? ''}`);
-          await discord.sendMessage(channelId, `Husker jeg:\n${items.join('\n')}`);
-        } else {
-          await discord.sendMessage(channelId, 'Ingen minner funnet.');
-        }
-        return;
-      }
-    } catch (e) {
-      console.error('[Relay] Memory handling error:', (e as Error)?.message ?? e);
-    }
-    // Day-details trigger: "detaljer om <dato>" or "vis[, dag] <dato>"
-    try {
-      const ddMatch = userMessage.match(/detaljer om\s+(.+)/i) || userMessage.match(/vis(?: dag)?\s+(.+)/i);
-      if (ddMatch && ddMatch[1]) {
-        const dateStr = ddMatch[1].trim();
-        const date = new Date(dateStr);
-        if (!Number.isNaN(date.getTime())) {
-          const calendar = new CalendarDisplayService();
-          const details = await calendar.getDayDetails(date);
-          if (Array.isArray(details) && details.length > 0) {
-            const header = `Detaljer for ${date.toDateString()}:`;
-            const lines = details.map((ev: any) => {
-              const when = `${ev.start_time}–${ev.end_time}`.trim();
-              const parts = [`${ev.title} (${when})`];
-              if (ev.description) parts.push(`Beskrivelse: ${ev.description}`);
-              if (ev.attendees && ev.attendees.length > 0) parts.push(`Deltakere: ${ev.attendees.join(', ')}`);
-              if (ev.rsvp_status) parts.push(`RSVP: ${ev.rsvp_status}`);
-              return parts.join(' | ');
-            });
-            const text = [header, ...lines].join('\n');
-            await discord.sendMessage(channelId, text);
-            return;
-          }
-        }
-      }
-    } catch {
-      // no-op on day-details failures
-    }
-    // Calendar query handling: show calendar embed instead of Ollama when query detected
-    if (isCalendarQuery(userMessage)) {
-      try {
-        // Extract month jump if present (Norwegian): \/kalender måned:navn or \"kalender måned Navn\"
-        let monthIndex: number | undefined;
-        let yearForMonth: number | undefined;
-        const lowerMsg = userMessage.toLowerCase();
-        const mMonthColon = userMessage.match(/\/kalender\s+måned\s*:\s*([a-zøæåäö]+)\b/i);
-        if (mMonthColon && mMonthColon[1]) {
-          const nm = mMonthColon[1];
-          const idx = norskMonthNameToIndex(nm);
-          if (idx !== null) monthIndex = idx;
-        } else {
-          const mMonthPlain = lowerMsg.match(/kalender\s+måned\s+([a-zæøå]+)\b/i);
-          if (mMonthPlain && mMonthPlain[1]) {
-            const idx = norskMonthNameToIndex(mMonthPlain[1]);
-            if (idx !== null) monthIndex = idx;
-          }
-        }
-        const m = userMessage.match(/\/kalender uke:(-?\d+)/i);
-        if (m && m[1] !== undefined) {
-          const parsed = parseInt(m[1], 10);
-          if (!Number.isNaN(parsed)) {
-            weekOffsets.set(channelId, parsed);
-          }
-        }
-        const calendar = new CalendarDisplayService();
-        const offset = weekOffsets.get(channelId) ?? 0;
-        let embed: any;
-        if (typeof monthIndex === 'number') {
-          const year = (typeof yearForMonth === 'number') ? yearForMonth : new Date().getFullYear();
-          embed = await calendar.buildWeekEmbed(undefined, undefined, offset, monthIndex, year);
-        } else {
-          embed = await calendar.buildWeekEmbed(undefined, undefined, offset);
-        }
-        if (embed) {
-          const lines: string[] = [];
-          if ((embed as any).title) lines.push((embed as any).title);
-          // Optional: show the month fallback name when jumping to a specific month
-          if (typeof monthIndex === 'number') {
-            lines.push(`Kalender måned: ${norskMonthIndexToName(monthIndex)}`);
-          }
-          if ((embed as any).fields && Array.isArray((embed as any).fields)) {
-            for (const f of (embed as any).fields) {
-              const name = f?.name ?? '';
-              const value = f?.value ?? '';
-              lines.push(`${name}: ${value}`.trim());
-            }
-          }
-          const text = lines.join('\n');
-          if (text) {
-            {
-              const toned = ToneService.apply(text + '\n\n⚠️ *Kalenderhendelser er ikke implementert endå. Bruk "husk" for å lagre minner.*', userId);
-              await discord.sendMessage(channelId, toned, { embed: embed as any });
-            }
-          }
-        } else {
-          await discord.sendMessage(channelId, 'Kalenderen kunne ikke bygges akkurat nå.');
-        }
-  } catch (err) {
-    logger.error('[Relay] Calendar embed error:', { context: 'Relay', error: err });
-        await discord.sendMessage(channelId, t('calendar.fetchFailed'));
-      }
-      return;
     }
     // Proceed with normal flow
   try {
@@ -938,58 +547,6 @@ if (imageHandler.canHandle(userMessage, handlerCtx)) {
           logger.warn('[Relay] ComfyUI health check failed:', { context: 'Relay', error: e as any });
         }
 
-  // In-memory cache to avoid duplicate reminders within the same runtime
-  const remindedEventIds = new Set<string>();
-
-  // Helper to run reminder checks periodically
-  const runReminders = async () => {
-    try {
-      // Fetch upcoming events (limited to the next 10 by start_time)
-      const upcoming: any[] = eventDb.findUpcoming(10);
-      if (!upcoming || upcoming.length === 0) return;
-
-      const nowSec = Math.floor(Date.now() / 1000);
-      const twoHoursSec = 2 * 60 * 60;
-
-      for (const ev of upcoming) {
-        // event rows use snake_case as returned by sqlite, but be tolerant
-        const id = ev.id;
-        const channelId = ev.channel_id ?? ev.channelId ?? ev?.channel?.id;
-        const title = ev.title ?? '';
-        const startTime = ev.start_time ?? ev.startTime ?? ev?.start?.time ?? undefined;
-        if (!id || !startTime) continue;
-
-        const diff = Number(startTime) - nowSec;
-        // Within 2 hours window, and within next hour to remind (<= 3600 seconds)
-        if (diff > 0 && diff <= twoHoursSec) {
-          // Only remind once per runtime
-          if (diff <= 3600 && !remindedEventIds.has(id)) {
-            const formattedTime = extraction.formatTimestamp(Number(startTime));
-            const message = `⏰ Påminnelse: ${title} starter ${formattedTime}`;
-            if (channelId) {
-              try {
-                await discord.sendMessage(channelId, message);
-              } catch (err) {
-                // If we fail to send, log but keep trying on next tick
-                logger.error('[Relay] Reminder send failed:', { context: 'Relay', error: err as any });
-              }
-            } else {
-              console.warn('[Relay] Reminder skipped: missing channel_id for event', id);
-            }
-            remindedEventIds.add(id);
-          }
-        }
-      }
-    } catch (err) {
-      logger.error('[Relay] Reminder timer error:', { context: 'Relay', error: err as any });
-    }
-  };
-
-  // Run every 60 seconds
-  setInterval(() => {
-    // Fire and forget; errors are handled inside runReminders
-    runReminders();
-  }, 60 * 1000);
 
   process.on('SIGINT', () => {
     logger.info('Received SIGINT - Shutting down gracefully...');

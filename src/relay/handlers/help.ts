@@ -47,14 +47,15 @@ export class HelpHandler implements MessageHandler {
       return 'calendar';
     }
     
-    // Memory-specific help
-    if (this.matchAny(m, [
+    // Memory-specific help - but EXCLUDE actual memory recall queries (handled by MemorySkill)
+    const memoryQueryPatterns = ['hva husker du', 'husker du noe', 'husker du', 'hvilke minner', 'minner har'];
+    const isMemoryQuery = memoryQueryPatterns.some(p => m.includes(p));
+    if (!isMemoryQuery && this.matchAny(m, [
       'memory', 'huske', 'minne', 'husk', 'recall', 'remember',
       'how to remember', 'hvordan huske', 'lagre'
     ])) {
       return 'memory';
     }
-    
     // Image generation help
     if (this.matchAny(m, [
       'image', 'bilde', 'generate', 'tegn', 'comfyui', 'generer',

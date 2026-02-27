@@ -7,3 +7,6 @@ export { ImageHandler } from './image.js';
 export { CalendarHandler, DayDetailsHandler } from './calendar.js';
 export { MemoryHandler, ClarificationHandler } from './memory.js';
 export { RoleHandler } from './role.js';
+
+export { ToneHandler } from './tone.js';
+export { SelfAnalysisHandler } from './self-analysis.js';

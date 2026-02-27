@@ -14,4 +14,9 @@ export default defineConfig({
       all: true
     } as any
   },
+  resolve: {
+    alias: {
+      '/src': '/home/reed/Projects/Ine-Discord/src'
+    }
+  }
 });

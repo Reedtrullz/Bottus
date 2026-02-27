@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+
+# Database files
+*.db
+
+# Environment files
+.env
+.env.local
+
+# Logs
+*.log
+
+# Test coverage
+coverage/
+
+# Cache
+.cache/
+.vite/

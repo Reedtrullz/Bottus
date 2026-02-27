@@ -1,0 +1,38 @@
+name: Sync Cron to Google Calendar
+
+on:
+  schedule:
+    # Run every hour
+    - cron: '0 * * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run mode'
+        required: false
+        default: 'false'
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Install dependencies
+        run: pip install requests
+        
+      - name: Run sync
+        env:
+          MATON_API_KEY: ${{ secrets.MATON_API_KEY }}
+          MATON_CONNECTION: ${{ secrets.MATON_CONNECTION }}
+          NANOBOT_CRON_DB: /home/reed/.nanobot/cron.db
+        run: |
+          if [ "${{ github.event.inputs.dry_run }}" == "true" ]; then
+            python3 scripts/sync_cron_to_gcal.py --dry-run
+          else
+            python3 scripts/sync_cron_to_gcal.py
+          fi
