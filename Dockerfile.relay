@@ -9,11 +9,12 @@ COPY package*.json package-lock.json ./
 COPY tsconfig.json ./
 RUN npm install
 
-# Build TypeScript
-RUN npm run build
-
+# Copy source before building
 COPY src/ ./src/
 COPY .sisyphus/ /.sisyphus/
+
+# Build TypeScript
+RUN npm run build
 
 ENV NODE_ENV=production
 ENV TZ=Europe/Oslo
