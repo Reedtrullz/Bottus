@@ -3,6 +3,15 @@ name: Deploy to WSL
 on:
   push:
     branches: [main]
+    paths:
+      - 'src/**'
+      - 'package.json'
+      - 'tsconfig.json'
+
+
+on:
+  push:
+    branches: [main]
 
 jobs:
   deploy:
@@ -38,6 +47,16 @@ jobs:
             npm run build
             
             # Restart the bot if running
+            if pgrep -f "tsx src/relay/index" > /dev/null; then
+              echo "Restarting Bottus..."
+              pkill -f "tsx src/relay/index" || true
+              sleep 2
+              nohup npx tsx src/relay/index.ts > bot.log 2>&1 &
+              echo "Bottus restarted"
+            else
+              echo "Starting Bottus..."
+              nohup npx tsx src/relay/index.ts > bot.log 2>&1 &
+            fi
             if pgrep -f "dist/index.js" > /dev/null; then
               echo "Restarting Bottus..."
               pkill -f "dist/index.js" || true

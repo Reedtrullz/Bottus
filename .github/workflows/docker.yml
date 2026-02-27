@@ -51,6 +51,18 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64,linux/arm64
+
+  deploy:
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.relay
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
         uses: docker/build-push-action@v5
         with:
           context: .

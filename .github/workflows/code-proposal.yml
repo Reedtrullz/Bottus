@@ -1,5 +1,12 @@
 name: Code Proposal Workflow
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.inputs.proposal_id }}
+  cancel-in-progress: false
+
+on:
+name: Code Proposal Workflow
+
 on:
   workflow_dispatch:
     inputs:
