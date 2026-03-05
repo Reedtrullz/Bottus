@@ -21,7 +21,7 @@ AI Discord bot with local LLM (Ollama), image generation (ComfyUI), shared calen
 │   ├── gateway/           # Experimental skill dispatcher
 │   ├── db/               # SQLite via sql.js
 │   └── utils/            # Shared utilities
-├── tests/                 # Vitest test suite (34 files, 522 tests, ~40% coverage)
+├── tests/                 # Vitest test suite (35 files, 538 tests, ~40% coverage)
 ├── docs/                  # Documentation
 ├── skills/                # External skill integrations
 ├── docker-compose.yml     # Ollama + ComfyUI + relay
@@ -94,6 +94,17 @@ npm run start:gateway # Experimental gateway
 npm run build        # TypeScript compile
 npm test             # Vitest run
 ```
+
+## RECENT CHANGES (2026-03-05)
+
+### Wave 4 Features Implemented
+- **Recurring events**: Calendar now expands weekly/monthly events when listing
+- **Nightly cron**: Self-improvement cron wired up (3:00 AM Europe/Oslo)
+- **Documentation**: README updated with bilingual command examples
+
+### Code Cleanup
+- Removed 4 unused handler exports (replaced by skills)
+- Dead code analysis complete
 
 ## GITHUB WORKFLOWS
 

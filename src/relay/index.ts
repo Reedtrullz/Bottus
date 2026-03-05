@@ -42,6 +42,8 @@ import { MemoryService } from '../services/memory.js';
 import { permissionService, auditLogger, confirmationService } from './skills/index.js';
 import { userProfileService } from '../services/user-profile.js';
 import { botPersonaService } from '../services/bot-persona.js';
+import { startNightlyCron } from '../scripts/nightly-cron.js';
+import { SisyphusLearner } from '../scripts/sisyphus-learner.js';
 
 
 
@@ -85,7 +87,14 @@ validateEnv();
   logger.info('[Relay] Initializing database...', { context: 'Relay' });
   await initializeDatabase();
   logger.info('[Relay] Database initialized', { context: 'Relay' });
-  
+
+  // Start nightly cron for Sisyphus self-improvement
+  if (!process.env.DISABLE_NIGHTLY_CRON) {
+    const learner = new SisyphusLearner('./data/interactions.db', OLLAMA_URL, OLLAMA_MODEL);
+    await learner.initialize();
+    startNightlyCron(learner);
+  }
+
   // Start health endpoint
   startHealthEndpoint();
 

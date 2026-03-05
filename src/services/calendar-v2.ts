@@ -5,6 +5,108 @@ import * as chrono from 'chrono-node';
 import { v4 as uuid } from 'uuid';
 import { CalendarEvent, createCalendarDb, rowToCalendarEvent } from '../db/calendar-schema.js';
 
+/**
+ * Expanded instance of a recurring event
+ */
+export interface ExpandedEventInstance extends CalendarEvent {
+  instanceId: string; // Unique ID for this instance (parentId_instanceIndex)
+  originalStartTime: number; // The start time of this specific instance
+  originalEndTime?: number; // The end time of this specific instance
+}
+
+/**
+ * Expand a recurring event into multiple instances within a date range
+ */
+export function expandRecurringEvent(
+  event: CalendarEvent,
+  rangeStart: number,
+  rangeEnd: number
+): ExpandedEventInstance[] {
+  if (!event.recurrence) {
+    // Non-recurring event - include if within range
+    if (event.startTime >= rangeStart && event.startTime <= rangeEnd) {
+      return [{
+        ...event,
+        instanceId: `${event.id}_0`,
+        originalStartTime: event.startTime,
+        originalEndTime: event.endTime,
+      }];
+    }
+    return [];
+  }
+
+  const instances: ExpandedEventInstance[] = [];
+  const recurrenceEnd = event.recurrenceEnd || Number.MAX_SAFE_INTEGER;
+  const effectiveEnd = Math.min(rangeEnd, recurrenceEnd);
+
+  // Parse recurrence pattern
+  const recurrencePattern = event.recurrence.toUpperCase();
+  let intervalMs: number | null = null;
+
+  if (recurrencePattern.includes('FREQ=DAILY')) {
+    intervalMs = 24 * 60 * 60 * 1000; // 1 day
+  } else if (recurrencePattern.includes('FREQ=WEEKLY')) {
+    intervalMs = 7 * 24 * 60 * 60 * 1000; // 7 days
+  } else if (recurrencePattern.includes('FREQ=MONTHLY')) {
+    // Monthly is handled specially - we add months to the date
+    intervalMs = null;
+  }
+
+  let instanceIndex = 0;
+  let currentStart = event.startTime;
+  let currentEnd = event.endTime;
+
+  // Generate instances until we pass the effective end date
+  while (currentStart <= effectiveEnd) {
+    // Include if within the requested range
+    if (currentStart >= rangeStart && currentStart <= rangeEnd) {
+      instances.push({
+        ...event,
+        instanceId: `${event.id}_${instanceIndex}`,
+        startTime: currentStart,
+        endTime: currentEnd,
+        originalStartTime: currentStart,
+        originalEndTime: currentEnd,
+      });
+    }
+
+    // Move to next occurrence
+    if (intervalMs !== null) {
+      // Daily or Weekly - simple interval addition
+      currentStart += intervalMs;
+      if (currentEnd) {
+        currentEnd += intervalMs;
+      }
+    } else {
+      // Monthly - add months to the date
+      const startDate = new Date(currentStart);
+      startDate.setMonth(startDate.getMonth() + 1);
+      
+      // Handle month-end edge cases (e.g., Jan 31 -> Feb 28)
+      const originalDay = new Date(event.startTime).getDate();
+      if (startDate.getDate() !== originalDay) {
+        // The month doesn't have enough days, use last day of month
+        startDate.setDate(0);
+      }
+      
+      const duration = event.endTime ? event.endTime - event.startTime : 0;
+      currentStart = startDate.getTime();
+      if (currentEnd && event.endTime) {
+        currentEnd = currentStart + duration;
+      }
+    }
+
+    instanceIndex++;
+
+    // Safety limit - prevent infinite loops
+    if (instanceIndex > 1000) {
+      break;
+    }
+  }
+
+  return instances;
+}
+
 export class CalendarServiceV2 {
   private db: SqlJsDatabase | null = null;
   private scheduledReminders: Map<string, NodeJS.Timeout> = new Map();
@@ -123,36 +225,46 @@ export class CalendarServiceV2 {
 
   async getEvents(channelId: string, range: 'today' | 'week' | 'all'): Promise<CalendarEvent[]> {
     if (!this.db) await this.initialize();
-    
+
     const now = new Date();
-    let endTime: number;
+    const rangeStart = now.getTime();
+    let rangeEnd: number;
 
     if (range === 'today') {
       const endOfDay = new Date(now);
       endOfDay.setHours(23, 59, 59, 999);
-      endTime = endOfDay.getTime();
+      rangeEnd = endOfDay.getTime();
     } else if (range === 'week') {
       const endOfWeek = new Date(now);
       endOfWeek.setDate(endOfWeek.getDate() + (7 - endOfWeek.getDay()));
       endOfWeek.setHours(23, 59, 59, 999);
-      endTime = endOfWeek.getTime();
+      rangeEnd = endOfWeek.getTime();
     } else {
-      endTime = Number.MAX_SAFE_INTEGER;
+      rangeEnd = Number.MAX_SAFE_INTEGER;
     }
 
     const results = this.db!.exec(`
-      SELECT id, title, description, startTime, endTime, timezone, recurrence, 
+      SELECT id, title, description, startTime, endTime, timezone, recurrence,
              recurrenceEnd, location, creatorId, channelId, guildId, rsvp, reminders, createdAt, updatedAt
-      FROM calendar_events 
-      WHERE channelId = ? AND startTime <= ?
+      FROM calendar_events
+      WHERE channelId = ?
       ORDER BY startTime ASC
-    `, [channelId, endTime]);
+    `, [channelId]);
 
     if (!results.length || !results[0].values.length) {
       return [];
     }
 
-    return results[0].values.map(rowToCalendarEvent);
+    const events = results[0].values.map(rowToCalendarEvent);
+    const expandedEvents: CalendarEvent[] = [];
+
+    for (const event of events) {
+      const instances = expandRecurringEvent(event, rangeStart, rangeEnd);
+      expandedEvents.push(...instances);
+    }
+
+    expandedEvents.sort((a, b) => a.startTime - b.startTime);
+    return expandedEvents;
   }
 
   async deleteEvent(eventId: string, userId: string): Promise<boolean> {

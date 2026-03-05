@@ -184,17 +184,17 @@ docker-compose up -d
 
 ### 📅 Calendar
 
-| Action | Trigger | Example |
-|--------|---------|---------|
-| Create event | `lag arrangement` | `lag arrangement Middag imorgen kl 18` |
-| List events | `mine arrangementer` / `hva skjer` | `hva skjer` |
-| View week | `calendar week` | `kalender uke` |
-| View month | `calendar month` | `kalender måned` |
-| RSVP | `rsvp` | `rsvp Middag yes` |
-| Event details | `event` | `event Middag` |
-| Time poll | `propose tid` | `propose tid for gaming` |
-| Delete | `slett` | `slett Middag` |
-| Export | `eksport` | `eksport kalender` |
+| Action | Trigger | Norwegian Example | English Example |
+|--------|---------|-------------------|-----------------|
+| Create event | `lag arrangement` / `create event` | `lag arrangement Middag imorgen kl 18` | `create event Dinner tomorrow at 6pm` |
+| List events | `mine arrangementer` / `my events` | `mine arrangementer` | `my events` |
+| View week | `kalender uke` / `calendar week` | `kalender uke` | `calendar week` |
+| View month | `kalender måned` / `calendar month` | `kalender måned` | `calendar month` |
+| RSVP | `rsvp` | `rsvp Middag yes` / `no` / `maybe` | `rsvp Dinner yes` / `no` / `maybe` |
+| Event details | `event` / `arrangement` | `event Middag` | `event Dinner` |
+| Time poll | `foreslå tid` / `propose time` | `foreslå tid for gaming` | `propose time for gaming` |
+| Delete | `slett` / `delete` | `slett Middag` | `delete Dinner` |
+| Export | `eksport` / `export` | `eksport kalender` | `export calendar` |
 
 ### 🖼️ Image Generation
 
@@ -205,10 +205,16 @@ docker-compose up -d
 
 ### 💭 Memory
 
-| Action | Trigger | Example |
-|--------|---------|---------|
-| Store | `husk at` | `husk at jeg liker pizza` |
-| Recall | `hva liker` | `hva liker jeg?` |
+| Action | Trigger | Norwegian Example | English Example |
+|--------|---------|-------------------|-----------------|
+| Store | `husk at` / `remember that` | `husk at jeg liker pizza` | `remember that I like pizza` |
+| Recall | `hva` / `what` | `hva liker jeg?` | `what do I like?` |
+
+### ❓ Help
+
+| Trigger | Example |
+|---------|---------|
+| `hjelp` / `help` | `hjelp` or `help calendar` |
 
 ---
 
