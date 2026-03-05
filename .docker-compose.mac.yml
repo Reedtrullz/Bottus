@@ -1,0 +1,66 @@
+name: bottus
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ine-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    environment:
+      OLLAMA_HOST: "0.0.0.0"
+    # Note: GPU support on Mac requires different configuration
+    # For Apple Silicon, Ollama will use CPU or Metal (if supported)
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  comfyui:
+    image: ardenius/comfyui-cpu:latest
+    container_name: ine-comfyui
+    ports:
+      - "8188:8188"
+    volumes:
+      - comfyui-data:/workspace/ComfyUI
+      - comfyui-models:/workspace/ComfyUI/models
+    command: python3 /ComfyUI-cpu/main.py --listen 0.0.0.0 --cpu --cpu-vae
+    environment:
+      COMFYUI_PORT: "8188"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8188/system_stats"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Note: The relay bot needs to be built from source
+  # Uncomment this section after configuring your .env file
+  # 
+  # ine-relay:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.relay
+  #   container_name: ine-relay-bot
+  #   # Use host networking on Mac via special DNS
+  #   extra_hosts:
+  #     - "host.docker.internal:host-gateway"
+  #   env_file:
+  #     - .env.docker
+  #   environment:
+  #     OLLAMA_URL: "http://host.docker.internal:11434"
+  #     COMFYUI_URL: "http://host.docker.internal:8188"
+  #   depends_on:
+  #     ollama:
+  #       condition: service_healthy
+  #     comfyui:
+  #       condition: service_healthy
+  #   restart: unless-stopped
+
+volumes:
+  ollama-data:
+  comfyui-data:
+  comfyui-models:
