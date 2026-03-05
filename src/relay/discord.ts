@@ -2,11 +2,19 @@
 import { Client } from 'discord.js-selfbot-v13';
 import { logger } from '../utils/logger.js';
 import { discordRateLimiter } from './utils/rate-limit.js';
+import { CircuitBreaker } from '../utils/circuit-breaker.js';
 
 interface MessageHistory {
   content: string;
   author: string;
   timestamp: number;
+}
+
+export interface ConnectionHealth {
+  connected: boolean;
+  lastActivity: number;
+  lastError?: string;
+  reconnectAttempts: number;
 }
 
 export class DiscordRelay {
@@ -17,30 +25,50 @@ export class DiscordRelay {
   private maxHistory: number;
   private token: string;
   private mentionCallback: ((msg: any) => Promise<void>) | null = null;
+  
+  private connectionState: ConnectionHealth = {
+    connected: false,
+    lastActivity: Date.now(),
+    reconnectAttempts: 0,
+  };
+  private messageCircuitBreaker: CircuitBreaker;
 
   constructor(token: string, maxHistory: number = 5) {
     this.token = token;
     this.maxHistory = maxHistory;
+    this.messageCircuitBreaker = new CircuitBreaker({
+      failureThreshold: 5,
+      resetTimeout: 60000,
+      halfOpenMaxCalls: 3,
+    });
     this.client = new Client();
 
     this.client.on('error', (err: Error) => {
+      this.connectionState.connected = false;
+      this.connectionState.lastError = err?.message ?? 'Unknown error';
+      this.connectionState.lastActivity = Date.now();
       logger.error('[Discord] Client error: ' + (err?.message ?? ''));
     });
 
     this.client.on('disconnect', () => {
+      this.connectionState.connected = false;
+      this.connectionState.lastActivity = Date.now();
       logger.info('[Discord] Client disconnected');
     });
 
     this.client.on('ready', () => {
-      // Safely capture user details when ready
       const u = (this.client as any).user;
       this.userId = u?.id ?? '';
       this.username = u?.username ?? '';
       const disc = u?.discriminator ?? '';
+      this.connectionState.connected = true;
+      this.connectionState.lastActivity = Date.now();
+      this.connectionState.lastError = undefined;
       logger.info(`[Discord] Logged in as ${this.username}#${disc} (ID: ${this.userId})`);
     });
 
     this.client.on('message', async (msg: any) => {
+      this.connectionState.lastActivity = Date.now();
       if (msg.author.bot) return;
       if (!this.isDeletableChannel(msg)) return;
 
@@ -141,32 +169,33 @@ export class DiscordRelay {
   }
 
   async sendMessage(channelId: string, content: string, options?: { embed?: any, components?: any[], file?: string }): Promise<any> {
-    // Rate limiting - use channelId as key
-    if (!discordRateLimiter.isAllowed(channelId)) {
-      const remaining = discordRateLimiter.getRemaining(channelId);
-      logger.warn(`[Discord] Rate limited message to ${channelId}, ${remaining} requests remaining`);
+    return this.messageCircuitBreaker.execute(async () => {
+      if (!discordRateLimiter.isAllowed(channelId)) {
+        const remaining = discordRateLimiter.getRemaining(channelId);
+        logger.warn(`[Discord] Rate limited message to ${channelId}, ${remaining} requests remaining`);
+        return null;
+      }
+      const channel = this.client.channels.cache.get(channelId);
+      if (channel) {
+        const chanAny: any = channel as any;
+        const payload: any = { content };
+        
+        if (options?.file) {
+          payload.file = options.file;
+        }
+        if (options?.embed) {
+          payload.embed = options.embed;
+        }
+        if (options?.components) {
+          payload.components = options.components;
+        }
+        
+        const sent = await chanAny.send(payload);
+        logger.info(`[Discord] Sent message to channel ${channelId}${options?.file ? ' with file' : ''}`);
+        return sent;
+      }
       return null;
-    }
-    const channel = this.client.channels.cache.get(channelId);
-    if (channel) {
-      const chanAny: any = channel as any;
-      const payload: any = { content };
-      
-      // Attach file if provided
-      if (options?.file) {
-        payload.file = options.file;
-      }
-      if (options?.embed) {
-        payload.embed = options.embed;
-      }
-      if (options?.components) {
-        payload.components = options.components;
-      }
-      
-      const sent = await chanAny.send(payload);
-      logger.info(`[Discord] Sent message to channel ${channelId}${options?.file ? ' with file' : ''}`);
-      return sent;
-    }
+    });
   }
 
   async login(): Promise<void> {
@@ -193,7 +222,18 @@ export class DiscordRelay {
     return this.userId;
   }
 
+  getConnectionHealth(): ConnectionHealth {
+    return { ...this.connectionState };
+  }
+
+  isHealthy(): boolean {
+    const fiveMinutes = 5 * 60 * 1000;
+    const inactive = Date.now() - this.connectionState.lastActivity > fiveMinutes;
+    return this.connectionState.connected && !inactive;
+  }
+
   disconnect(): void {
+    this.connectionState.connected = false;
     this.client.destroy();
   }
 }

@@ -127,7 +127,7 @@ export class TimePollService {
     const channel = this.client?.channels?.get?.(poll.channelId) || null;
     const resultText = `Avstemning avsluttet. Vinner: ${winner}.`; // Norwegian UI text
     if (channel && channel.send) {
-      channel.send(resultText).catch(() => {});
+      channel.send(resultText).catch(() => { void 0; });
     }
     this.polls.delete(poll.messageId || poll.id);
   }

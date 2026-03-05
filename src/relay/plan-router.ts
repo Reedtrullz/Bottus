@@ -137,9 +137,21 @@ export class PlanRouter {
         
         // Add RSVP reactions
         if (confMsg && typeof confMsg.react === 'function') {
-          try { await confMsg.react('✅'); } catch {}
-          try { await confMsg.react('❌'); } catch {}
-          try { await confMsg.react('🤔'); } catch {}
+          try { 
+            await confMsg.react('✅'); 
+          } catch (e) {
+            logger.debug('[PlanRouter] Failed to add yes reaction', { error: e });
+          }
+          try { 
+            await confMsg.react('❌'); 
+          } catch (e) {
+            logger.debug('[PlanRouter] Failed to add no reaction', { error: e });
+          }
+          try { 
+            await confMsg.react('🤔'); 
+          } catch (e) {
+            logger.debug('[PlanRouter] Failed to add maybe reaction', { error: e });
+          }
         }
 
         return { 

@@ -32,7 +32,7 @@ import { MemorySkill } from './skills/memory-skill.js';
 import { ClarificationSkill } from './skills/clarification-skill.js';
 import { DayDetailsSkill } from './skills/day-details-skill.js';
 import { CalendarServiceV2 } from '../services/calendar-v2.js';
-import { startHealthEndpoint } from './health.js';
+import { startHealthEndpoint, setDiscordRelay } from './health.js';
 
 import { CalendarDisplayService } from '../services/calendar-display.js';
 import { ToneService } from '../services/tone.js';
@@ -103,6 +103,7 @@ validateEnv();
   comfyui = new ComfyUIClient(COMFYUI_URL);
   const discord = new DiscordRelay(DISCORD_TOKEN, HISTORY_MAX_MESSAGES);
   setDiscord(discord);
+  setDiscordRelay(discord);
   startReminderInterval();
 
   // Register message handlers
@@ -143,13 +144,18 @@ validateEnv();
           } else {
             await interaction.reply({ content: t('calendar.updateFailed'), ephemeral: true });
           }
-          try { await interaction.deferUpdate?.(); } catch { }
+          try {
+            await interaction.deferUpdate?.();
+          } catch {
+            void 0;
+          }
         } catch {
-  
+          void 0;
         }
       });
     }
   } catch {
+    void 0;
   }
 
   // RSVP reaction handling
@@ -164,15 +170,18 @@ validateEnv();
     const emoji = reaction.emoji?.name;
     const status = emoji === '✅' ? 'yes' : emoji === '❌' ? 'no' : emoji === '🤔' ? 'maybe' : null;
     if (status) {
-      try { await rsvpDb.upsert(eventId, user?.id ?? '', status); } catch {}
+      try {
+        await rsvpDb.upsert(eventId, user?.id ?? '', status);
+      } catch {
+        logger.warn('[Relay] Failed to update RSVP', { eventId, userId: user?.id });
+      }
     }
-    // Also log thumbs feedback to FeedbackHandler when available
     try {
       if (emoji === '👍' || emoji === '👎') {
         await feedbackHandler.handleReaction(msgId, user?.id ?? '', emoji);
       }
     } catch {
-      // best-effort logging; ignore failures to avoid breaking flow
+      void 0;
     }
   });
       client.on('messageReactionRemove', async (reaction: any, user: any) => {
@@ -180,7 +189,11 @@ validateEnv();
         const msgId = reaction.message.id;
         const eventId = eventConfirmationMap.get(msgId);
         if (!eventId) return;
-        try { await rsvpDb.remove(eventId, user?.id ?? ''); } catch {}
+        try {
+          await rsvpDb.remove(eventId, user?.id ?? '');
+        } catch {
+          logger.warn('[Relay] Failed to remove RSVP', { eventId, userId: user?.id });
+        }
       });
     }
   } catch {

@@ -4,6 +4,12 @@ import { healthMonitor } from '../services/health-monitor.js';
 import { permissionService, UserRole } from './skills/permission.js';
 import { roleDb } from '../db/index.js';
 
+let discordRelay: any = null;
+
+export function setDiscordRelay(relay: any): void {
+  discordRelay = relay;
+}
+
 const PORT = process.env.HEALTH_PORT || 3001;
 
 export function startHealthEndpoint(): void {
@@ -31,10 +37,19 @@ export function startHealthEndpoint(): void {
         res.statusCode = ready ? 200 : 503;
         res.end(JSON.stringify({ ready }));
       } else {
+        const discordHealth = discordRelay?.getConnectionHealth?.() ?? null;
+        const discordStatus = discordHealth ? {
+          connected: discordHealth.connected,
+          lastActivity: discordHealth.lastActivity,
+          lastError: discordHealth.lastError,
+          healthy: discordRelay?.isHealthy?.() ?? false,
+        } : null;
+        
         res.statusCode = 200;
         res.end(JSON.stringify({
           status: report.overall,
           services: report.services,
+          discord: discordStatus,
           timestamp: report.timestamp,
         }));
       }

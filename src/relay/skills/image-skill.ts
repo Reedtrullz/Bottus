@@ -52,7 +52,9 @@ export class ImageSkill implements Skill {
                 // Clean up temp file after sending
                 try {
                   fs.unlinkSync(tempFilePath);
-                } catch { /* ignore cleanup errors */ }
+                } catch {
+                  void 0;
+                }
               } else {
                 // Fallback: send URL as text if download fails
                 await ctx.discord.sendMessage(ctx.channelId, `🎨 Bildet ditt: ${result.imageUrl}`);
