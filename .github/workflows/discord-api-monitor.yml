@@ -1,0 +1,55 @@
+name: Discord API Monitor
+
+on:
+  schedule:
+    # Run every hour
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+jobs:
+  check-discord-changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check Discord API Changelog
+        id: changelog
+        run: |
+          # Fetch Discord API changelog
+          curl -s https://discord.com/api/v10/channels/697138785317814292/messages?limit=5 \
+            -H "Authorization: Bot ${{ secrets.DISCORD_BOT_TOKEN }}" \
+            > discord_updates.json || echo "Failed to fetch"
+          
+          # Check for keywords that might indicate breaking changes
+          if [ -f discord_updates.json ]; then
+            if grep -i "breaking\|deprecated\|removed\|user token\|selfbot" discord_updates.json; then
+              echo "POTENTIAL_BREAKING_CHANGE=true" >> $GITHUB_ENV
+              echo "⚠️ Potential breaking change detected in Discord API"
+            else
+              echo "No breaking changes detected"
+            fi
+          fi
+
+      - name: Send Alert
+        if: env.POTENTIAL_BREAKING_CHANGE == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨 Discord API Alert - Potential Breaking Change',
+              body: 'A potential breaking change has been detected in the Discord API changelog. Please review immediately.',
+              labels: ['alert', 'discord-api', 'breaking-change']
+            });
+
+  health-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Health Check
+        run: |
+          # This would check if the bot is responsive
+          # For now, just a placeholder
+          echo "Health check would go here"
+          # curl -f http://your-bot-host:3001/health || exit 1

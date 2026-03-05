@@ -1,0 +1,5 @@
+# Python Relay - Discord.py-self Spike
+# Proof of concept for migrating from discord.js-selfbot-v13 to discord.py-self
+
+discord.py-self>=2.1.0
+python-dotenv>=1.0.0
